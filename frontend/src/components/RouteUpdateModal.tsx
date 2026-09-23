@@ -9,8 +9,12 @@ import { TextArea } from './ui/TextArea'
 import { Input } from './ui/Input'
 import type { DailyRouteAssignment } from '../types'
 import { ESTADO_ASIGNACION_LABEL, ESTADO_ASIGNACION_OPTIONS, ESTADOS_LIBERABLES, formatDateTime } from '../utils/estado'
-import { useReleaseAssignment, useUpdateAssignment } from '../hooks/useDailyRoutes'
+import { useReleaseAssignment, useUpdateAssignment, useUploadFiscalizacionFotos } from '../hooks/useDailyRoutes'
 import { getApiErrorMessage } from '../api/client'
+
+const MAX_FOTOS = 4
+const MAX_FOTO_SIZE_BYTES = 5 * 1024 * 1024
+const ALLOWED_FOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
 const updateSchema = z.object({
   estado: z.enum(['pendiente', 'en_progreso', 'fiscalizado', 'no_corresponde']),
@@ -34,7 +38,10 @@ type RouteUpdateModalProps = {
 export function RouteUpdateModal({ isOpen, onClose, assignment }: RouteUpdateModalProps) {
   const updateMutation = useUpdateAssignment()
   const releaseMutation = useReleaseAssignment()
+  const uploadFotosMutation = useUploadFiscalizacionFotos()
   const [confirmingRelease, setConfirmingRelease] = useState(false)
+  const [selectedFotos, setSelectedFotos] = useState<File[]>([])
+  const [fotosError, setFotosError] = useState<string | null>(null)
 
   const {
     register,
@@ -62,9 +69,21 @@ export function RouteUpdateModal({ isOpen, onClose, assignment }: RouteUpdateMod
       })
       updateMutation.reset()
       releaseMutation.reset()
+      uploadFotosMutation.reset()
       setConfirmingRelease(false)
+      setSelectedFotos([])
+      setFotosError(null)
     }
   }, [assignment?.id])
+
+  // Object URLs for the local thumbnail previews — revoked whenever the selection changes or the
+  // modal unmounts, so we don't leak memory across many open/close cycles in one session.
+  const [previewUrls, setPreviewUrls] = useState<string[]>([])
+  useEffect(() => {
+    const urls = selectedFotos.map((file) => URL.createObjectURL(file))
+    setPreviewUrls(urls)
+    return () => urls.forEach((url) => URL.revokeObjectURL(url))
+  }, [selectedFotos])
 
   if (!assignment) return null
 
@@ -73,7 +92,35 @@ export function RouteUpdateModal({ isOpen, onClose, assignment }: RouteUpdateMod
   const isReadOnly = isLiberado || isFiscalizado
   const puedeLiberar = ESTADOS_LIBERABLES.includes(assignment.estado)
 
+  const handleFotosChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? [])
+    event.target.value = ''
+    if (files.length === 0) return
+
+    if (selectedFotos.length + files.length > MAX_FOTOS) {
+      setFotosError(`Puedes adjuntar como máximo ${MAX_FOTOS} fotos por fiscalización.`)
+      return
+    }
+    const invalid = files.find((file) => !ALLOWED_FOTO_TYPES.has(file.type) || file.size > MAX_FOTO_SIZE_BYTES)
+    if (invalid) {
+      setFotosError('Cada foto debe ser JPG, PNG o WEBP y pesar como máximo 5MB.')
+      return
+    }
+    setFotosError(null)
+    setSelectedFotos((prev) => [...prev, ...files])
+  }
+
+  const removeSelectedFoto = (index: number) => {
+    setSelectedFotos((prev) => prev.filter((_, i) => i !== index))
+  }
+
   const onSubmit = handleSubmit((values) => {
+    if (selectedFotos.length > 0 && !values.nuevoComentario?.trim()) {
+      setFotosError('Escribe un comentario para poder asociar las fotos a la nueva fiscalización.')
+      return
+    }
+    setFotosError(null)
+
     updateMutation.mutate(
       {
         id: assignment.id,
@@ -85,13 +132,34 @@ export function RouteUpdateModal({ isOpen, onClose, assignment }: RouteUpdateMod
           nuevaFiscalizacion: values.nuevoComentario?.trim() ? { comentario: values.nuevoComentario.trim() } : undefined,
         },
       },
-      { onSuccess: onClose },
+      {
+        onSuccess: async (updated) => {
+          if (selectedFotos.length === 0) {
+            onClose()
+            return
+          }
+          const nuevaFiscalizacion = updated.fiscalizaciones[updated.fiscalizaciones.length - 1]
+          try {
+            await uploadFotosMutation.mutateAsync({
+              id: assignment.id,
+              numero: nuevaFiscalizacion.numero,
+              files: selectedFotos,
+            })
+            onClose()
+          } catch {
+            // Keep the modal open: the fiscalización comment already saved, but the photos didn't
+            // upload — the error banner below explains it, and the user can just try saving again.
+          }
+        },
+      },
     )
   })
 
   const handleRelease = () => {
     releaseMutation.mutate(assignment.id, { onSuccess: onClose })
   }
+
+  const isSaving = updateMutation.isPending || uploadFotosMutation.isPending
 
   return (
     <Modal
@@ -128,7 +196,7 @@ export function RouteUpdateModal({ isOpen, onClose, assignment }: RouteUpdateMod
             <Button variant="ghost" type="button" onClick={onClose}>
               Cancelar
             </Button>
-            <Button type="submit" form="route-update-form" isLoading={updateMutation.isPending} disabled={isReadOnly}>
+            <Button type="submit" form="route-update-form" isLoading={isSaving} disabled={isReadOnly}>
               Guardar cambios
             </Button>
           </div>
@@ -197,13 +265,29 @@ export function RouteUpdateModal({ isOpen, onClose, assignment }: RouteUpdateMod
               Todavía no hay fiscalizaciones registradas para este punto.
             </p>
           ) : (
-            <ol className="max-h-40 space-y-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+            <ol className="max-h-56 space-y-3 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
               {assignment.fiscalizaciones.map((f) => (
                 <li key={f.numero} className="text-sm">
                   <span className="font-medium text-slate-700">
                     Fiscalización #{f.numero} · {formatDateTime(f.horaRegistro)}
                   </span>
                   <p className="text-slate-600">{f.comentario}</p>
+                  {f.fotos.length > 0 ? (
+                    <div className="mt-1.5 flex flex-wrap gap-2">
+                      {f.fotos.map((url, index) => (
+                        <a
+                          key={index}
+                          href={url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block h-16 w-16 overflow-hidden rounded-lg border border-slate-200"
+                          title="Ver foto en tamaño completo"
+                        >
+                          <img src={url} alt={`Foto ${index + 1} de la fiscalización #${f.numero}`} className="h-full w-full object-cover" />
+                        </a>
+                      ))}
+                    </div>
+                  ) : null}
                 </li>
               ))}
             </ol>
@@ -219,11 +303,53 @@ export function RouteUpdateModal({ isOpen, onClose, assignment }: RouteUpdateMod
           {...register('nuevoComentario')}
         />
 
+        {!isReadOnly ? (
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">Fotos de evidencia (opcional)</label>
+            <p className="mb-2 text-xs text-slate-500">
+              Hasta {MAX_FOTOS} fotos (JPG, PNG o WEBP, máx. 5MB c/u). Se adjuntan a la fiscalización que agregues arriba —
+              necesitas escribir un comentario para poder guardarlas.
+            </p>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              onChange={handleFotosChange}
+              disabled={selectedFotos.length >= MAX_FOTOS}
+              className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-primary-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-700 hover:file:bg-primary-100"
+            />
+            {fotosError ? <p className="mt-1 text-xs text-rose-600">{fotosError}</p> : null}
+            {selectedFotos.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {selectedFotos.map((file, index) => (
+                  <div key={index} className="relative h-16 w-16 overflow-hidden rounded-lg border border-slate-200">
+                    <img src={previewUrls[index]} alt={file.name} className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeSelectedFoto(index)}
+                      aria-label={`Quitar ${file.name}`}
+                      className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-slate-900/70 text-[10px] leading-none text-white hover:bg-slate-900"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
         {updateMutation.isError ? (
           <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{getApiErrorMessage(updateMutation.error)}</p>
         ) : null}
         {releaseMutation.isError ? (
           <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{getApiErrorMessage(releaseMutation.error)}</p>
+        ) : null}
+        {uploadFotosMutation.isError ? (
+          <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            La fiscalización se guardó, pero las fotos no se pudieron subir: {getApiErrorMessage(uploadFotosMutation.error)}.
+            Intenta guardar de nuevo.
+          </p>
         ) : null}
       </form>
     </Modal>

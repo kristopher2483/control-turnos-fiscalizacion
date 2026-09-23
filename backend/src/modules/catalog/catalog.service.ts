@@ -1,31 +1,18 @@
-import { v4 as uuid } from 'uuid';
-import { DataStore } from '../../storage/storage.interface';
+import { supabase } from '../../db/supabase';
 import { RoutePoint, RoutePointWithAssignee } from '../../types';
 import { badRequest, conflict, notFound } from '../../utils/http-error';
 import { UsersService } from '../users/users.service';
 import { RolesService } from '../roles/roles.service';
 import { CreateRoutePointInput, UpdateRoutePointInput } from './catalog.schemas';
-
-const CATALOG_ROOT = 'catalog';
-
-interface LocatedRoutePoint {
-  point: RoutePoint;
-  fecha: string;
-}
+import { RoutePointRow, toRoutePoint } from './catalog.mapper';
 
 export class CatalogService {
-  constructor(
-    private readonly store: DataStore,
-    private readonly usersService: UsersService,
-    private readonly rolesService: RolesService
-  ) {}
-
-  private pathForFecha(fecha: string): string {
-    return `${CATALOG_ROOT}/${fecha}`;
-  }
+  constructor(private readonly usersService: UsersService, private readonly rolesService: RolesService) {}
 
   async listByFecha(fecha: string): Promise<RoutePoint[]> {
-    return this.store.readJson<RoutePoint[]>(this.pathForFecha(fecha), []);
+    const { data, error } = await supabase.from('route_points').select('*').eq('fecha', fecha).order('sector');
+    if (error) throw error;
+    return ((data ?? []) as RoutePointRow[]).map(toRoutePoint);
   }
 
   async listByFechaEnriched(fecha: string): Promise<RoutePointWithAssignee[]> {
@@ -56,47 +43,39 @@ export class CatalogService {
   async create(input: CreateRoutePointInput, createdBy: string): Promise<RoutePointWithAssignee> {
     await this.assertValidAssignee(input.assignedInspectorId);
 
-    const points = await this.listByFecha(input.fecha);
-    const now = new Date().toISOString();
-    const point: RoutePoint = {
-      id: uuid(),
-      fecha: input.fecha,
-      diaProgramado: input.diaProgramado,
-      sector: input.sector,
-      direccion: input.direccion,
-      empresaResponsable: input.empresaResponsable,
-      tipoExigencia: input.tipoExigencia,
-      descripcionExigencia: input.descripcionExigencia,
-      ventanaEntrada: input.ventanaEntrada,
-      ventanaSalida: input.ventanaSalida,
-      vigenciaDesde: input.vigenciaDesde,
-      vigenciaHasta: input.vigenciaHasta,
-      estadoDisponibilidad: 'disponible',
-      assignedInspectorId: input.assignedInspectorId ?? null,
-      createdBy,
-      createdAt: now,
-      updatedAt: now
-    };
-    points.push(point);
-    await this.store.writeJson(this.pathForFecha(input.fecha), points);
-    return this.enrich(point);
+    const { data, error } = await supabase
+      .from('route_points')
+      .insert({
+        fecha: input.fecha,
+        dia_programado: input.diaProgramado,
+        sector: input.sector,
+        direccion: input.direccion,
+        empresa_responsable: input.empresaResponsable,
+        tipo_exigencia: input.tipoExigencia,
+        descripcion_exigencia: input.descripcionExigencia,
+        ventana_entrada: input.ventanaEntrada,
+        ventana_salida: input.ventanaSalida,
+        vigencia_desde: input.vigenciaDesde,
+        vigencia_hasta: input.vigenciaHasta,
+        estado_disponibilidad: 'disponible',
+        assigned_inspector_id: input.assignedInspectorId ?? null,
+        created_by: createdBy
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return this.enrich(toRoutePoint(data as RoutePointRow));
   }
 
-  async findById(id: string): Promise<LocatedRoutePoint | undefined> {
-    const fechas = await this.store.listChildren(CATALOG_ROOT);
-    for (const fecha of fechas) {
-      const points = await this.listByFecha(fecha);
-      const point = points.find((candidate) => candidate.id === id);
-      if (point) {
-        return { point, fecha };
-      }
-    }
-    return undefined;
+  async findById(id: string): Promise<RoutePoint | undefined> {
+    const { data, error } = await supabase.from('route_points').select('*').eq('id', id).maybeSingle();
+    if (error) throw error;
+    return data ? toRoutePoint(data as RoutePointRow) : undefined;
   }
 
   async update(id: string, input: UpdateRoutePointInput): Promise<RoutePointWithAssignee> {
-    const located = await this.findById(id);
-    if (!located) {
+    const existing = await this.findById(id);
+    if (!existing) {
       throw notFound('Punto de ruta no encontrado');
     }
 
@@ -104,67 +83,66 @@ export class CatalogService {
       await this.assertValidAssignee(input.assignedInspectorId);
     }
 
-    const updated: RoutePoint = {
-      ...located.point,
-      ...input,
-      updatedAt: new Date().toISOString()
-    };
-
-    if (updated.vigenciaHasta < updated.vigenciaDesde) {
+    const vigenciaDesde = input.vigenciaDesde ?? existing.vigenciaDesde;
+    const vigenciaHasta = input.vigenciaHasta ?? existing.vigenciaHasta;
+    if (vigenciaHasta < vigenciaDesde) {
       throw badRequest('vigenciaHasta no puede ser anterior a vigenciaDesde');
     }
 
-    if (input.fecha && input.fecha !== located.fecha) {
-      const oldList = await this.listByFecha(located.fecha);
-      await this.store.writeJson(
-        this.pathForFecha(located.fecha),
-        oldList.filter((point) => point.id !== id)
-      );
-      const newList = await this.listByFecha(input.fecha);
-      newList.push(updated);
-      await this.store.writeJson(this.pathForFecha(input.fecha), newList);
-    } else {
-      const list = await this.listByFecha(located.fecha);
-      const index = list.findIndex((point) => point.id === id);
-      list[index] = updated;
-      await this.store.writeJson(this.pathForFecha(located.fecha), list);
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (input.fecha !== undefined) patch.fecha = input.fecha;
+    if (input.diaProgramado !== undefined) patch.dia_programado = input.diaProgramado;
+    if (input.sector !== undefined) patch.sector = input.sector;
+    if (input.direccion !== undefined) patch.direccion = input.direccion;
+    if (input.empresaResponsable !== undefined) patch.empresa_responsable = input.empresaResponsable;
+    if (input.tipoExigencia !== undefined) patch.tipo_exigencia = input.tipoExigencia;
+    if (input.descripcionExigencia !== undefined) patch.descripcion_exigencia = input.descripcionExigencia;
+    if (input.ventanaEntrada !== undefined) patch.ventana_entrada = input.ventanaEntrada;
+    if (input.ventanaSalida !== undefined) patch.ventana_salida = input.ventanaSalida;
+    if (input.vigenciaDesde !== undefined) patch.vigencia_desde = input.vigenciaDesde;
+    if (input.vigenciaHasta !== undefined) patch.vigencia_hasta = input.vigenciaHasta;
+    if (Object.prototype.hasOwnProperty.call(input, 'assignedInspectorId')) {
+      patch.assigned_inspector_id = input.assignedInspectorId;
     }
 
-    return this.enrich(updated);
+    const { data, error } = await supabase.from('route_points').update(patch).eq('id', id).select().maybeSingle();
+    if (error) throw error;
+    if (!data) {
+      throw notFound('Punto de ruta no encontrado');
+    }
+    return this.enrich(toRoutePoint(data as RoutePointRow));
   }
 
   async markAsTomado(id: string): Promise<RoutePoint> {
-    const located = await this.findById(id);
-    if (!located) {
+    const existing = await this.findById(id);
+    if (!existing) {
       throw notFound('Punto de ruta no encontrado');
     }
-    if (located.point.estadoDisponibilidad === 'tomado') {
+    if (existing.estadoDisponibilidad === 'tomado') {
       throw conflict('Este punto de ruta ya fue tomado por otro inspector');
     }
-    return this.setDisponibilidad(located, 'tomado');
+    return this.setDisponibilidad(id, 'tomado');
   }
 
   async markAsDisponible(id: string): Promise<RoutePoint> {
-    const located = await this.findById(id);
-    if (!located) {
+    const existing = await this.findById(id);
+    if (!existing) {
       throw notFound('Punto de ruta no encontrado');
     }
-    return this.setDisponibilidad(located, 'disponible');
+    return this.setDisponibilidad(id, 'disponible');
   }
 
   private async setDisponibilidad(
-    located: LocatedRoutePoint,
+    id: string,
     estadoDisponibilidad: RoutePoint['estadoDisponibilidad']
   ): Promise<RoutePoint> {
-    const list = await this.listByFecha(located.fecha);
-    const index = list.findIndex((point) => point.id === located.point.id);
-    const updated: RoutePoint = {
-      ...located.point,
-      estadoDisponibilidad,
-      updatedAt: new Date().toISOString()
-    };
-    list[index] = updated;
-    await this.store.writeJson(this.pathForFecha(located.fecha), list);
-    return updated;
+    const { data, error } = await supabase
+      .from('route_points')
+      .update({ estado_disponibilidad: estadoDisponibilidad, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return toRoutePoint(data as RoutePointRow);
   }
 }

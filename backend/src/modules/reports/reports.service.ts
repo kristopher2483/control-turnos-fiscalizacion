@@ -1,8 +1,7 @@
-import { DataStore } from '../../storage/storage.interface';
+import { supabase } from '../../db/supabase';
 import { DailyRouteAssignment } from '../../types';
+import { DailyRouteAssignmentRow, toAssignment } from '../daily-routes/daily-routes.mapper';
 import { SummaryQuery } from './reports.schemas';
-
-const REGISTROS_ROOT = 'registros';
 
 export interface SummaryReport {
   totalPuntos: number;
@@ -12,29 +11,20 @@ export interface SummaryReport {
 }
 
 export class ReportsService {
-  constructor(private readonly store: DataStore) {}
-
   private async listAssignmentsForFecha(fecha: string): Promise<DailyRouteAssignment[]> {
-    const inspectorIds = await this.store.listChildren(`${REGISTROS_ROOT}/${fecha}`);
-    const results: DailyRouteAssignment[] = [];
-    for (const inspectorId of inspectorIds) {
-      const list = await this.store.readJson<DailyRouteAssignment[]>(
-        `${REGISTROS_ROOT}/${fecha}/${inspectorId}`,
-        []
-      );
-      results.push(...list);
-    }
-    return results;
+    const { data, error } = await supabase.from('daily_route_assignments').select('*').eq('fecha', fecha);
+    if (error) throw error;
+    return ((data ?? []) as DailyRouteAssignmentRow[]).map(toAssignment);
   }
 
   private async listAssignmentsInRange(desde: string, hasta: string): Promise<DailyRouteAssignment[]> {
-    const allFechas = await this.store.listChildren(REGISTROS_ROOT);
-    const fechasInRange = allFechas.filter((fecha) => fecha >= desde && fecha <= hasta);
-    const results: DailyRouteAssignment[] = [];
-    for (const fecha of fechasInRange) {
-      results.push(...(await this.listAssignmentsForFecha(fecha)));
-    }
-    return results;
+    const { data, error } = await supabase
+      .from('daily_route_assignments')
+      .select('*')
+      .gte('fecha', desde)
+      .lte('fecha', hasta);
+    if (error) throw error;
+    return ((data ?? []) as DailyRouteAssignmentRow[]).map(toAssignment);
   }
 
   async summary(query: SummaryQuery): Promise<SummaryReport> {

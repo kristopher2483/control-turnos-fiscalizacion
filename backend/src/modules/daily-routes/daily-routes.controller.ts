@@ -38,6 +38,16 @@ export class DailyRoutesController {
     res.json(assignment);
   };
 
+  uploadFotos = async (req: Request, res: Response): Promise<void> => {
+    if (!req.user) {
+      throw unauthorized();
+    }
+    const numero = Number(req.params.numero);
+    const files = (req.files as Express.Multer.File[] | undefined) ?? [];
+    const assignment = await this.dailyRoutesService.addFotos(req.params.id, numero, req.user, files);
+    res.status(201).json(assignment);
+  };
+
   listAll = async (req: Request, res: Response): Promise<void> => {
     const assignments = await this.dailyRoutesService.listAll(req.query as { fecha?: string; inspectorId?: string });
     res.json(assignments);

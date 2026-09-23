@@ -8,7 +8,7 @@ async function main(): Promise<void> {
   const app = createApp();
   app.listen(env.port, () => {
     // eslint-disable-next-line no-console
-    console.log(`Control de Turnos backend escuchando en http://localhost:${env.port} (storage: ${env.storageProvider})`);
+    console.log(`Control de Turnos backend escuchando en http://localhost:${env.port} (base de datos: Supabase)`);
   });
 }
 

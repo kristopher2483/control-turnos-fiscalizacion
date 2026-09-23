@@ -16,7 +16,7 @@ export function createApp(): Express {
   app.use(express.json());
 
   app.get('/api/health', (_req: Request, res: Response) => {
-    res.json({ status: 'ok', storage: env.storageProvider });
+    res.json({ status: 'ok', database: 'supabase' });
   });
 
   app.use('/api/auth', authRouter);

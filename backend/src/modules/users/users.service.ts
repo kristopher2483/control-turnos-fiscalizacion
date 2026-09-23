@@ -1,28 +1,32 @@
-import { v4 as uuid } from 'uuid';
-import { DataStore } from '../../storage/storage.interface';
+import { supabase } from '../../db/supabase';
 import { PublicUser, User } from '../../types';
 import { RolesService } from '../roles/roles.service';
 import { hashPassword } from '../../utils/password';
 import { badRequest, conflict, notFound } from '../../utils/http-error';
 import { CreateUserInput, UpdateUserInput } from './users.schemas';
-
-const USERS_PATH = 'users';
+import { toUser, UserRow } from './users.mapper';
 
 export class UsersService {
-  constructor(private readonly store: DataStore, private readonly rolesService: RolesService) {}
+  constructor(private readonly rolesService: RolesService) {}
 
   async listUsers(): Promise<User[]> {
-    return this.store.readJson<User[]>(USERS_PATH, []);
+    const { data, error } = await supabase.from('users').select('*').order('created_at');
+    if (error) throw error;
+    return ((data ?? []) as UserRow[]).map(toUser);
   }
 
   async findUserById(id: string): Promise<User | undefined> {
-    const users = await this.listUsers();
-    return users.find((user) => user.id === id);
+    const { data, error } = await supabase.from('users').select('*').eq('id', id).maybeSingle();
+    if (error) throw error;
+    return data ? toUser(data as UserRow) : undefined;
   }
 
   async findUserByUsername(username: string): Promise<User | undefined> {
-    const users = await this.listUsers();
-    return users.find((user) => user.username.toLowerCase() === username.toLowerCase());
+    // ilike with no % wildcards is an exact, case-insensitive match — fine for our usernames,
+    // which never contain literal "%" or "_".
+    const { data, error } = await supabase.from('users').select('*').ilike('username', username).maybeSingle();
+    if (error) throw error;
+    return data ? toUser(data as UserRow) : undefined;
   }
 
   async toPublicUser(user: User): Promise<PublicUser> {
@@ -49,9 +53,8 @@ export class UsersService {
   }
 
   async createUser(input: CreateUserInput): Promise<PublicUser> {
-    const users = await this.listUsers();
-
-    if (users.some((user) => user.username.toLowerCase() === input.username.toLowerCase())) {
+    const existing = await this.findUserByUsername(input.username);
+    if (existing) {
       throw conflict(`Ya existe un usuario con username "${input.username}"`);
     }
 
@@ -60,31 +63,23 @@ export class UsersService {
       throw badRequest(`roleId "${input.roleId}" no corresponde a un rol existente`);
     }
 
-    const now = new Date().toISOString();
-    const user: User = {
-      id: uuid(),
-      username: input.username,
-      passwordHash: await hashPassword(input.password),
-      fullName: input.fullName,
-      email: input.email,
-      roleId: input.roleId,
-      active: true,
-      createdAt: now,
-      updatedAt: now
-    };
-
-    users.push(user);
-    await this.store.writeJson(USERS_PATH, users);
-    return this.toPublicUser(user);
+    const { data, error } = await supabase
+      .from('users')
+      .insert({
+        username: input.username,
+        password_hash: await hashPassword(input.password),
+        full_name: input.fullName,
+        email: input.email,
+        role_id: input.roleId,
+        active: true
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return this.toPublicUser(toUser(data as UserRow));
   }
 
   async updateUser(id: string, input: UpdateUserInput): Promise<PublicUser> {
-    const users = await this.listUsers();
-    const index = users.findIndex((user) => user.id === id);
-    if (index === -1) {
-      throw notFound('Usuario no encontrado');
-    }
-
     if (input.roleId) {
       const role = await this.rolesService.findRoleById(input.roleId);
       if (!role) {
@@ -92,27 +87,30 @@ export class UsersService {
       }
     }
 
-    const updated: User = {
-      ...users[index],
-      ...input,
-      updatedAt: new Date().toISOString()
-    };
-    users[index] = updated;
-    await this.store.writeJson(USERS_PATH, users);
-    return this.toPublicUser(updated);
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (input.fullName !== undefined) patch.full_name = input.fullName;
+    if (input.email !== undefined) patch.email = input.email;
+    if (input.roleId !== undefined) patch.role_id = input.roleId;
+    if (input.active !== undefined) patch.active = input.active;
+
+    const { data, error } = await supabase.from('users').update(patch).eq('id', id).select().maybeSingle();
+    if (error) throw error;
+    if (!data) {
+      throw notFound('Usuario no encontrado');
+    }
+    return this.toPublicUser(toUser(data as UserRow));
   }
 
   async updateUserPassword(id: string, newPassword: string): Promise<void> {
-    const users = await this.listUsers();
-    const index = users.findIndex((user) => user.id === id);
-    if (index === -1) {
+    const { data, error } = await supabase
+      .from('users')
+      .update({ password_hash: await hashPassword(newPassword), updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select('id')
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) {
       throw notFound('Usuario no encontrado');
     }
-    users[index] = {
-      ...users[index],
-      passwordHash: await hashPassword(newPassword),
-      updatedAt: new Date().toISOString()
-    };
-    await this.store.writeJson(USERS_PATH, users);
   }
 }

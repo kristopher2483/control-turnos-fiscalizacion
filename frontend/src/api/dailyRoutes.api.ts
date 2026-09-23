@@ -34,6 +34,20 @@ export async function releaseAssignment(id: string): Promise<DailyRouteAssignmen
   return data
 }
 
+export async function uploadFiscalizacionFotos(
+  id: string,
+  numero: number,
+  files: File[],
+): Promise<DailyRouteAssignment> {
+  const formData = new FormData()
+  files.forEach((file) => formData.append('fotos', file))
+  const { data } = await apiClient.post<DailyRouteAssignment>(
+    `/daily-routes/${id}/fiscalizaciones/${numero}/fotos`,
+    formData,
+  )
+  return data
+}
+
 export type FetchAllRoutesParams = {
   fecha?: string
   inspectorId?: string

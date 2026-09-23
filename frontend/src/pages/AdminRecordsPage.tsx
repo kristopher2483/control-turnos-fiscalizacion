@@ -6,15 +6,18 @@ import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
 import { Spinner } from '../components/ui/Spinner'
 import { EmptyState } from '../components/ui/EmptyState'
+import { FotosViewerModal } from '../components/FotosViewerModal'
 import { useAllRoutesQuery } from '../hooks/useDailyRoutes'
 import { useUsersQuery } from '../hooks/useUsers'
 import { useExportCsv } from '../hooks/useReports'
 import { getApiErrorMessage } from '../api/client'
 import { ESTADO_ASIGNACION_LABEL, ESTADO_ASIGNACION_TONE, todayIsoDate } from '../utils/estado'
+import type { DailyRouteAssignment } from '../types'
 
 export function AdminRecordsPage() {
   const [fecha, setFecha] = useState(todayIsoDate())
   const [inspectorId, setInspectorId] = useState('')
+  const [viewingFotosFor, setViewingFotosFor] = useState<DailyRouteAssignment | null>(null)
 
   const usersQuery = useUsersQuery()
   const inspectors = useMemo(() => (usersQuery.data ?? []).filter((user) => user.role.name === 'inspector'), [usersQuery.data])
@@ -63,7 +66,7 @@ export function AdminRecordsPage() {
       ) : (
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[960px] divide-y divide-slate-100 text-sm">
+            <table className="w-full min-w-[1080px] divide-y divide-slate-100 text-sm">
               <thead className="bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-4 py-3">Inspector</th>
@@ -74,34 +77,50 @@ export function AdminRecordsPage() {
                   <th className="px-4 py-3">Observaciones</th>
                   <th className="px-4 py-3 text-center">Fiscalizaciones</th>
                   <th className="px-4 py-3">Llegada / Salida</th>
+                  <th className="px-4 py-3 text-right">Fotos</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {(routesQuery.data ?? []).map((assignment) => (
-                  <tr key={assignment.id} className="hover:bg-slate-50/60">
-                    <td className="px-4 py-3 font-medium text-slate-800">{assignment.inspectorUsername}</td>
-                    <td className="px-4 py-3 text-slate-600">{assignment.snapshot.sector}</td>
-                    <td className="px-4 py-3 text-slate-600">{assignment.snapshot.direccion}</td>
-                    <td className="px-4 py-3 text-slate-600">{assignment.snapshot.empresaResponsable}</td>
-                    <td className="px-4 py-3">
-                      <Badge tone={ESTADO_ASIGNACION_TONE[assignment.estado]} dot>
-                        {ESTADO_ASIGNACION_LABEL[assignment.estado]}
-                      </Badge>
-                    </td>
-                    <td className="max-w-xs truncate px-4 py-3 text-slate-600" title={assignment.observaciones}>
-                      {assignment.observaciones || '—'}
-                    </td>
-                    <td className="px-4 py-3 text-center text-slate-600">{assignment.fiscalizaciones.length}</td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {assignment.horaLlegada ?? '—'} / {assignment.horaSalida ?? '—'}
-                    </td>
-                  </tr>
-                ))}
+                {(routesQuery.data ?? []).map((assignment) => {
+                  const cantidadFotos = assignment.fiscalizaciones.reduce((total, f) => total + f.fotos.length, 0)
+                  return (
+                    <tr key={assignment.id} className="hover:bg-slate-50/60">
+                      <td className="px-4 py-3 font-medium text-slate-800">{assignment.inspectorUsername}</td>
+                      <td className="px-4 py-3 text-slate-600">{assignment.snapshot.sector}</td>
+                      <td className="px-4 py-3 text-slate-600">{assignment.snapshot.direccion}</td>
+                      <td className="px-4 py-3 text-slate-600">{assignment.snapshot.empresaResponsable}</td>
+                      <td className="px-4 py-3">
+                        <Badge tone={ESTADO_ASIGNACION_TONE[assignment.estado]} dot>
+                          {ESTADO_ASIGNACION_LABEL[assignment.estado]}
+                        </Badge>
+                      </td>
+                      <td className="max-w-xs truncate px-4 py-3 text-slate-600" title={assignment.observaciones}>
+                        {assignment.observaciones || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-center text-slate-600">{assignment.fiscalizaciones.length}</td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {assignment.horaLlegada ?? '—'} / {assignment.horaSalida ?? '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={cantidadFotos === 0}
+                          onClick={() => setViewingFotosFor(assignment)}
+                        >
+                          Ver ({cantidadFotos})
+                        </Button>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         </Card>
       )}
+
+      <FotosViewerModal isOpen={Boolean(viewingFotosFor)} onClose={() => setViewingFotosFor(null)} assignment={viewingFotosFor} />
     </div>
   )
 }

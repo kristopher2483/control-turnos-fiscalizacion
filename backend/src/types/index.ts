@@ -52,6 +52,12 @@ export interface Fiscalizacion {
   numero: number;
   horaRegistro: string;
   comentario: string;
+  /**
+   * Storage paths (bucket "fiscalizacion-fotos") when read from the database, or short-lived
+   * signed URLs when returned to the client — see DailyRoutesService.withSignedUrls, which is
+   * what converts one into the other right before a response goes out.
+   */
+  fotos: string[];
 }
 
 export type EstadoDailyRoute = 'pendiente' | 'en_progreso' | 'fiscalizado' | 'no_corresponde' | 'liberado';

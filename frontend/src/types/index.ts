@@ -44,6 +44,8 @@ export type Fiscalizacion = {
   numero: number
   horaRegistro: string
   comentario: string
+  /** Ready-to-use signed URLs (expire ~1h after the API response that returned them). */
+  fotos: string[]
 }
 
 export type EstadoAsignacion = 'pendiente' | 'en_progreso' | 'fiscalizado' | 'no_corresponde' | 'liberado'

@@ -5,6 +5,7 @@ import {
   releaseAssignment,
   takeRoutePoint,
   updateAssignment,
+  uploadFiscalizacionFotos,
   type FetchAllRoutesParams,
   type TakeRouteInput,
   type UpdateAssignmentInput,
@@ -56,6 +57,18 @@ export function useReleaseAssignment() {
       queryClient.invalidateQueries({ queryKey: ['daily-routes', 'mine', assignment.fecha] })
       queryClient.invalidateQueries({ queryKey: ['daily-routes', 'all'] })
       queryClient.invalidateQueries({ queryKey: ['catalog', assignment.fecha] })
+    },
+  })
+}
+
+export function useUploadFiscalizacionFotos() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, numero, files }: { id: string; numero: number; files: File[] }) =>
+      uploadFiscalizacionFotos(id, numero, files),
+    onSuccess: (assignment) => {
+      queryClient.invalidateQueries({ queryKey: ['daily-routes', 'mine', assignment.fecha] })
+      queryClient.invalidateQueries({ queryKey: ['daily-routes', 'all'] })
     },
   })
 }

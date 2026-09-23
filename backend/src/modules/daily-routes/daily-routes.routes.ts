@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { dailyRoutesService } from '../../services';
 import { requireAuth, requireRole } from '../../middleware/auth.middleware';
 import { validateBody, validateQuery } from '../../middleware/validate.middleware';
+import { uploadFotos } from '../../middleware/upload.middleware';
 import { asyncHandler } from '../../utils/async-handler';
 import { DailyRoutesController } from './daily-routes.controller';
 import {
@@ -31,6 +32,12 @@ dailyRoutesRouter.put(
   asyncHandler(controller.update)
 );
 dailyRoutesRouter.post('/:id/release', requireRole('inspector'), asyncHandler(controller.release));
+dailyRoutesRouter.post(
+  '/:id/fiscalizaciones/:numero/fotos',
+  requireRole('inspector'),
+  uploadFotos,
+  asyncHandler(controller.uploadFotos)
+);
 dailyRoutesRouter.get(
   '/',
   requireRole('admin'),

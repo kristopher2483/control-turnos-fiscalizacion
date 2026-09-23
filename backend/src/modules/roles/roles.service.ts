@@ -1,53 +1,49 @@
-import { v4 as uuid } from 'uuid';
-import { DataStore } from '../../storage/storage.interface';
+import { supabase } from '../../db/supabase';
 import { Role } from '../../types';
 import { notFound, conflict } from '../../utils/http-error';
 import { CreateRoleInput, UpdateRoleInput } from './roles.schemas';
-
-const ROLES_PATH = 'roles';
+import { RoleRow, toRole } from './roles.mapper';
 
 export class RolesService {
-  constructor(private readonly store: DataStore) {}
-
   async listRoles(): Promise<Role[]> {
-    return this.store.readJson<Role[]>(ROLES_PATH, []);
+    const { data, error } = await supabase.from('roles').select('*').order('name');
+    if (error) throw error;
+    return ((data ?? []) as RoleRow[]).map(toRole);
   }
 
   async findRoleById(id: string): Promise<Role | undefined> {
-    const roles = await this.listRoles();
-    return roles.find((role) => role.id === id);
+    const { data, error } = await supabase.from('roles').select('*').eq('id', id).maybeSingle();
+    if (error) throw error;
+    return data ? toRole(data as RoleRow) : undefined;
   }
 
   async findRoleByName(name: string): Promise<Role | undefined> {
-    const roles = await this.listRoles();
-    return roles.find((role) => role.name === name);
+    const { data, error } = await supabase.from('roles').select('*').eq('name', name).maybeSingle();
+    if (error) throw error;
+    return data ? toRole(data as RoleRow) : undefined;
   }
 
   async createRole(input: CreateRoleInput): Promise<Role> {
-    const roles = await this.listRoles();
-    if (roles.some((role) => role.name === input.name)) {
+    const existing = await this.findRoleByName(input.name);
+    if (existing) {
       throw conflict(`Ya existe un rol con nombre "${input.name}"`);
     }
-    const role: Role = {
-      id: uuid(),
-      name: input.name,
-      label: input.label,
-      description: input.description
-    };
-    roles.push(role);
-    await this.store.writeJson(ROLES_PATH, roles);
-    return role;
+
+    const { data, error } = await supabase
+      .from('roles')
+      .insert({ name: input.name, label: input.label, description: input.description })
+      .select()
+      .single();
+    if (error) throw error;
+    return toRole(data as RoleRow);
   }
 
   async updateRole(id: string, input: UpdateRoleInput): Promise<Role> {
-    const roles = await this.listRoles();
-    const index = roles.findIndex((role) => role.id === id);
-    if (index === -1) {
+    const { data, error } = await supabase.from('roles').update(input).eq('id', id).select().maybeSingle();
+    if (error) throw error;
+    if (!data) {
       throw notFound('Rol no encontrado');
     }
-    const updated: Role = { ...roles[index], ...input };
-    roles[index] = updated;
-    await this.store.writeJson(ROLES_PATH, roles);
-    return updated;
+    return toRole(data as RoleRow);
   }
 }

@@ -1,7 +1,6 @@
-import { v4 as uuid } from 'uuid';
-import { dataStore, usersService } from '../services';
+import { supabase } from '../db/supabase';
+import { usersService } from '../services';
 import { hashPassword } from '../utils/password';
-import { Role, RoutePoint, User } from '../types';
 
 function todayFecha(): string {
   const now = new Date();
@@ -32,55 +31,58 @@ export async function seedIfNeeded(): Promise<void> {
     return;
   }
 
-  const now = new Date().toISOString();
+  const { data: roles, error: rolesError } = await supabase
+    .from('roles')
+    .insert([
+      { name: 'admin', label: 'Administrador', description: 'Administra usuarios, catálogo de puntos de ruta y reportes' },
+      {
+        name: 'inspector',
+        label: 'Inspector / Fiscalizador',
+        description: 'Toma puntos de ruta y registra visitas de fiscalización'
+      }
+    ])
+    .select();
+  if (rolesError) throw rolesError;
 
-  const adminRole: Role = {
-    id: uuid(),
-    name: 'admin',
-    label: 'Administrador',
-    description: 'Administra usuarios, catálogo de puntos de ruta y reportes'
-  };
-  const inspectorRole: Role = {
-    id: uuid(),
-    name: 'inspector',
-    label: 'Inspector / Fiscalizador',
-    description: 'Toma puntos de ruta y registra visitas de fiscalización'
-  };
-  await dataStore.writeJson<Role[]>('roles', [adminRole, inspectorRole]);
+  const adminRole = roles.find((role) => role.name === 'admin');
+  const inspectorRole = roles.find((role) => role.name === 'inspector');
+  if (!adminRole || !inspectorRole) {
+    throw new Error('[seed] No se pudieron crear los roles iniciales');
+  }
 
-  const adminUser: User = {
-    id: uuid(),
-    username: 'admin',
-    passwordHash: await hashPassword('Admin123!'),
-    fullName: 'Administrador General',
-    email: 'admin@controlturnos.local',
-    roleId: adminRole.id,
-    active: true,
-    createdAt: now,
-    updatedAt: now
-  };
-  const inspectorUser: User = {
-    id: uuid(),
-    username: 'inspector1',
-    passwordHash: await hashPassword('Inspector123!'),
-    fullName: 'Inspector Demo Uno',
-    email: 'inspector1@controlturnos.local',
-    roleId: inspectorRole.id,
-    active: true,
-    createdAt: now,
-    updatedAt: now
-  };
-  await dataStore.writeJson<User[]>('users', [adminUser, inspectorUser]);
+  const { data: users, error: usersError } = await supabase
+    .from('users')
+    .insert([
+      {
+        username: 'admin',
+        password_hash: await hashPassword('Admin123!'),
+        full_name: 'Administrador General',
+        email: 'admin@controlturnos.local',
+        role_id: adminRole.id,
+        active: true
+      },
+      {
+        username: 'inspector1',
+        password_hash: await hashPassword('Inspector123!'),
+        full_name: 'Inspector Demo Uno',
+        email: 'inspector1@controlturnos.local',
+        role_id: inspectorRole.id,
+        active: true
+      }
+    ])
+    .select();
+  if (usersError) throw usersError;
+
+  const adminUser = users.find((user) => user.username === 'admin');
+  const inspectorUser = users.find((user) => user.username === 'inspector1');
+  if (!adminUser || !inspectorUser) {
+    throw new Error('[seed] No se pudieron crear los usuarios iniciales');
+  }
 
   const fecha = todayFecha();
   const diaProgramado = diaProgramadoFor(fecha);
 
-  const seedPointDefinitions: Array<
-    Omit<
-      RoutePoint,
-      'id' | 'fecha' | 'diaProgramado' | 'estadoDisponibilidad' | 'assignedInspectorId' | 'createdBy' | 'createdAt' | 'updatedAt'
-    > & { assignedInspectorId?: string | null }
-  > = [
+  const seedPointDefinitions = [
     {
       sector: 'Centro',
       direccion: "Av. Libertador Bernardo O'Higgins 1234",
@@ -91,7 +93,7 @@ export async function seedIfNeeded(): Promise<void> {
       ventanaSalida: '11:00',
       vigenciaDesde: addDays(fecha, -5),
       vigenciaHasta: addDays(fecha, 25),
-      assignedInspectorId: inspectorUser.id
+      assignedInspectorId: inspectorUser.id as string | null
     },
     {
       sector: 'Los Dominicos',
@@ -102,7 +104,8 @@ export async function seedIfNeeded(): Promise<void> {
       ventanaEntrada: '10:30',
       ventanaSalida: '12:30',
       vigenciaDesde: addDays(fecha, -2),
-      vigenciaHasta: addDays(fecha, 18)
+      vigenciaHasta: addDays(fecha, 18),
+      assignedInspectorId: null as string | null
     },
     {
       sector: 'La Reina Alta',
@@ -113,7 +116,8 @@ export async function seedIfNeeded(): Promise<void> {
       ventanaEntrada: '08:30',
       ventanaSalida: '10:00',
       vigenciaDesde: fecha,
-      vigenciaHasta: addDays(fecha, 14)
+      vigenciaHasta: addDays(fecha, 14),
+      assignedInspectorId: null as string | null
     },
     {
       sector: 'Peñalolén',
@@ -124,7 +128,8 @@ export async function seedIfNeeded(): Promise<void> {
       ventanaEntrada: '14:00',
       ventanaSalida: '15:30',
       vigenciaDesde: addDays(fecha, -10),
-      vigenciaHasta: addDays(fecha, 10)
+      vigenciaHasta: addDays(fecha, 10),
+      assignedInspectorId: null as string | null
     },
     {
       sector: 'Vitacura',
@@ -135,7 +140,8 @@ export async function seedIfNeeded(): Promise<void> {
       ventanaEntrada: '11:00',
       ventanaSalida: '13:00',
       vigenciaDesde: addDays(fecha, -1),
-      vigenciaHasta: addDays(fecha, 29)
+      vigenciaHasta: addDays(fecha, 29),
+      assignedInspectorId: null as string | null
     },
     {
       sector: 'Providencia',
@@ -146,24 +152,31 @@ export async function seedIfNeeded(): Promise<void> {
       ventanaEntrada: '15:30',
       ventanaSalida: '17:00',
       vigenciaDesde: addDays(fecha, -7),
-      vigenciaHasta: addDays(fecha, 7)
+      vigenciaHasta: addDays(fecha, 7),
+      assignedInspectorId: null as string | null
     }
   ];
 
-  const routePoints: RoutePoint[] = seedPointDefinitions.map((definition) => ({
-    id: uuid(),
-    fecha,
-    diaProgramado,
-    ...definition,
-    assignedInspectorId: definition.assignedInspectorId ?? null,
-    estadoDisponibilidad: 'disponible',
-    createdBy: adminUser.id,
-    createdAt: now,
-    updatedAt: now
-  }));
-
-  await dataStore.writeJson<RoutePoint[]>(`catalog/${fecha}`, routePoints);
+  const { error: pointsError } = await supabase.from('route_points').insert(
+    seedPointDefinitions.map((definition) => ({
+      fecha,
+      dia_programado: diaProgramado,
+      sector: definition.sector,
+      direccion: definition.direccion,
+      empresa_responsable: definition.empresaResponsable,
+      tipo_exigencia: definition.tipoExigencia,
+      descripcion_exigencia: definition.descripcionExigencia,
+      ventana_entrada: definition.ventanaEntrada,
+      ventana_salida: definition.ventanaSalida,
+      vigencia_desde: definition.vigenciaDesde,
+      vigencia_hasta: definition.vigenciaHasta,
+      estado_disponibilidad: 'disponible',
+      assigned_inspector_id: definition.assignedInspectorId,
+      created_by: adminUser.id
+    }))
+  );
+  if (pointsError) throw pointsError;
 
   // eslint-disable-next-line no-console
-  console.log(`[seed] Datos iniciales creados: ${routePoints.length} puntos de ruta para ${fecha}`);
+  console.log(`[seed] Datos iniciales creados: ${seedPointDefinitions.length} puntos de ruta para ${fecha}`);
 }
