@@ -72,16 +72,6 @@ export function LoginPage() {
               Ingresar
             </Button>
           </form>
-
-          <div className="mt-7 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3.5 text-xs text-slate-500">
-            <p className="font-medium text-slate-600">Credenciales de demostración</p>
-            <p className="mt-1">
-              Administrador: <span className="font-mono text-slate-700">admin / Admin123!</span>
-            </p>
-            <p>
-              Inspector: <span className="font-mono text-slate-700">inspector1 / Inspector123!</span>
-            </p>
-          </div>
         </div>
 
         <p className="mt-6 text-center text-xs text-white/70">

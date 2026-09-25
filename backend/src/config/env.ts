@@ -12,7 +12,7 @@ function required(name: string, fallback?: string): string {
 
 export const env = {
   port: Number(process.env.PORT ?? 4000),
-  jwtSecret: required('JWT_SECRET', 'change-this-in-production'),
+  jwtSecret: required('JWT_SECRET'),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '12h',
   frontendUrl: process.env.FRONTEND_URL ?? 'http://localhost:5173',
   supabaseUrl: required('SUPABASE_URL'),

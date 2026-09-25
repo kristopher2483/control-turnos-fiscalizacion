@@ -8,5 +8,7 @@ export function signToken(payload: AuthenticatedUser): string {
 }
 
 export function verifyToken(token: string): AuthenticatedUser {
-  return jwt.verify(token, env.jwtSecret) as AuthenticatedUser;
+  // Pinning the algorithm is defense-in-depth against algorithm-confusion attacks, even though
+  // jsonwebtoken already rejects an attacker-supplied "alg: none" token when a secret is provided.
+  return jwt.verify(token, env.jwtSecret, { algorithms: ['HS256'] }) as AuthenticatedUser;
 }

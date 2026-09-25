@@ -12,7 +12,8 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     return;
   }
 
+  // Full detail (including any internal DB error) is logged server-side only — never sent to the
+  // client, since it could leak schema/column names or other implementation details.
   console.error(err);
-  const message = err instanceof Error ? err.message : 'Error interno del servidor';
-  res.status(500).json({ message });
+  res.status(500).json({ message: 'Error interno del servidor' });
 }

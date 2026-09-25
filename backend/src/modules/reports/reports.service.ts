@@ -85,9 +85,15 @@ export class ReportsService {
   }
 
   private escapeCsvValue(value: string): string {
-    if (/[",\n]/.test(value)) {
-      return `"${value.replace(/"/g, '""')}"`;
+    // Neutralize formula injection: a field starting with =, +, -, @ (or tab/CR) is interpreted as
+    // a formula by Excel/Sheets when the CSV is opened — this data comes from inspector-entered
+    // text (observaciones, etc.), so a malicious or compromised inspector account could otherwise
+    // plant a formula that runs when the admin opens the export.
+    const needsFormulaGuard = /^[=+\-@\t\r]/.test(value);
+    const safeValue = needsFormulaGuard ? `'${value}` : value;
+    if (/[",\n]/.test(safeValue)) {
+      return `"${safeValue.replace(/"/g, '""')}"`;
     }
-    return value;
+    return safeValue;
   }
 }
