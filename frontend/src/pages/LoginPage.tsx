@@ -40,8 +40,7 @@ export function LoginPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h1 className="text-xl font-semibold">Control de Turnos y Fiscalización</h1>
-          <p className="mt-1 text-sm text-white/80">Gestión de rutas de inspección municipal</p>
+          <h1 className="text-xl font-semibold">Gestión de Inspección Municipal</h1>
         </div>
 
         <div className="rounded-2xl bg-white p-6 shadow-soft sm:p-8">

@@ -1,8 +1,11 @@
 import type { ReactNode } from 'react'
-import { createContext, useCallback, useMemo } from 'react'
+import { createContext, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchMe, login as loginRequest, type MeResponse } from '../api/auth.api'
 import { getApiErrorMessage, TOKEN_STORAGE_KEY } from '../api/client'
+
+const INACTIVITY_LIMIT_MS = 5 * 60 * 1000
+const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'] as const
 
 export type AuthContextValue = {
   user: MeResponse | null
@@ -51,17 +54,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = '/login'
   }, [queryClient])
 
+  const isAuthenticated = Boolean(meQuery.data)
+
+  const logoutRef = useRef(logout)
+  logoutRef.current = logout
+
+  useEffect(() => {
+    if (!isAuthenticated) return
+
+    let timeoutId: ReturnType<typeof setTimeout>
+
+    const resetTimer = () => {
+      clearTimeout(timeoutId)
+      timeoutId = setTimeout(() => logoutRef.current(), INACTIVITY_LIMIT_MS)
+    }
+
+    ACTIVITY_EVENTS.forEach((event) => window.addEventListener(event, resetTimer, { passive: true }))
+    resetTimer()
+
+    return () => {
+      clearTimeout(timeoutId)
+      ACTIVITY_EVENTS.forEach((event) => window.removeEventListener(event, resetTimer))
+    }
+  }, [isAuthenticated])
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user: meQuery.data ?? null,
-      isAuthenticated: Boolean(meQuery.data),
+      isAuthenticated,
       isLoadingUser: hasToken && meQuery.isPending,
       login,
       logout,
       isLoggingIn: loginMutation.isPending,
       loginError: loginMutation.error ? getApiErrorMessage(loginMutation.error, 'Usuario o contraseña incorrectos.') : null,
     }),
-    [meQuery.data, meQuery.isPending, hasToken, login, logout, loginMutation.isPending, loginMutation.error],
+    [meQuery.data, isAuthenticated, meQuery.isPending, hasToken, login, logout, loginMutation.isPending, loginMutation.error],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

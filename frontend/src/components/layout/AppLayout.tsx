@@ -19,8 +19,8 @@ function BrandMark() {
         </svg>
       </div>
       <div className="leading-tight">
-        <p className="text-sm font-semibold text-slate-900">Control de Turnos</p>
-        <p className="text-xs text-slate-500">y Fiscalización</p>
+        <p className="text-sm font-semibold text-slate-900">Gestión de Inspección</p>
+        <p className="text-xs text-slate-500">Municipal</p>
       </div>
     </div>
   )
