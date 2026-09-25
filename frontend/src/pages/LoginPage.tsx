@@ -32,22 +32,25 @@ export function LoginPage() {
   })
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary-400 via-primary-500 to-primary-700 px-4 py-10">
-      <div className="w-full max-w-md">
-        <div className="mb-6 flex flex-col items-center text-center text-white">
-          <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
-            <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-primary-400 via-primary-600 to-primary-800 px-4 py-10">
+      <div className="pointer-events-none absolute -left-28 -top-28 h-80 w-80 rounded-full bg-white/10 blur-3xl" aria-hidden="true" />
+      <div className="pointer-events-none absolute -bottom-32 -right-20 h-96 w-96 rounded-full bg-primary-900/25 blur-3xl" aria-hidden="true" />
+
+      <div className="relative w-full max-w-md">
+        <div className="mb-8 flex flex-col items-center text-center text-white">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 shadow-lg shadow-primary-900/20 backdrop-blur">
+            <svg className="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h1 className="text-xl font-semibold">Gestión de Inspección Municipal</h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-[1.75rem]">Gestión de Inspección Municipal</h1>
         </div>
 
-        <div className="rounded-2xl bg-white p-6 shadow-soft sm:p-8">
-          <h2 className="text-lg font-semibold text-slate-900">Iniciar sesión</h2>
-          <p className="mt-1 text-sm text-slate-500">Ingresa tus credenciales para continuar</p>
+        <div className="rounded-3xl bg-white p-7 shadow-2xl shadow-primary-950/20 sm:p-9">
+          <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Iniciar sesión</h2>
+          <p className="mt-1.5 text-sm text-slate-500">Ingresa tus credenciales para continuar</p>
 
-          <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-4" noValidate>
+          <form onSubmit={onSubmit} className="mt-7 flex flex-col gap-5" noValidate>
             <Input
               label="Usuario"
               autoComplete="username"
@@ -65,12 +68,12 @@ export function LoginPage() {
 
             {loginError ? <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{loginError}</p> : null}
 
-            <Button type="submit" isLoading={isLoggingIn} fullWidth size="lg">
+            <Button type="submit" isLoading={isLoggingIn} fullWidth size="lg" className="mt-1">
               Ingresar
             </Button>
           </form>
 
-          <div className="mt-6 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3.5 py-3 text-xs text-slate-500">
+          <div className="mt-7 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3.5 text-xs text-slate-500">
             <p className="font-medium text-slate-600">Credenciales de demostración</p>
             <p className="mt-1">
               Administrador: <span className="font-mono text-slate-700">admin / Admin123!</span>
@@ -80,6 +83,10 @@ export function LoginPage() {
             </p>
           </div>
         </div>
+
+        <p className="mt-6 text-center text-xs text-white/70">
+          © {new Date().getFullYear()} · Plataforma interna de fiscalización municipal
+        </p>
       </div>
     </div>
   )
