@@ -8,6 +8,7 @@ import { Spinner } from '../components/ui/Spinner'
 import { EmptyState } from '../components/ui/EmptyState'
 import { CreateRoutePointModal } from '../components/CreateRoutePointModal'
 import { EditRoutePointModal } from '../components/EditRoutePointModal'
+import { ReprogramarPuntoModal } from '../components/ReprogramarPuntoModal'
 import { useCatalogRangeQuery } from '../hooks/useCatalog'
 import { getApiErrorMessage } from '../api/client'
 import { ESTADO_DISPONIBILIDAD_LABEL, ESTADO_DISPONIBILIDAD_TONE, formatDate, todayIsoDate } from '../utils/estado'
@@ -19,6 +20,7 @@ export function AdminCatalogPage() {
   const [estadoDisponibilidad, setEstadoDisponibilidad] = useState<EstadoDisponibilidad | ''>('')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingPoint, setEditingPoint] = useState<RoutePoint | null>(null)
+  const [reprogrammingPoint, setReprogrammingPoint] = useState<RoutePoint | null>(null)
 
   const rangoInvalido = fechaDesde > fechaHasta
   const catalogQuery = useCatalogRangeQuery(
@@ -72,7 +74,7 @@ export function AdminCatalogPage() {
       ) : (
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1200px] divide-y divide-slate-100 text-sm">
+            <table className="w-full min-w-[1320px] divide-y divide-slate-100 text-sm">
               <thead className="bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-4 py-3">Fecha / Día</th>
@@ -111,9 +113,14 @@ export function AdminCatalogPage() {
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Button variant="outline" size="sm" onClick={() => setEditingPoint(point)}>
-                        Editar
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="primary" size="sm" onClick={() => setReprogrammingPoint(point)}>
+                          Reprogramar
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => setEditingPoint(point)}>
+                          Editar
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -125,6 +132,11 @@ export function AdminCatalogPage() {
 
       <CreateRoutePointModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} fecha={todayIsoDate()} />
       <EditRoutePointModal isOpen={Boolean(editingPoint)} onClose={() => setEditingPoint(null)} point={editingPoint} />
+      <ReprogramarPuntoModal
+        isOpen={Boolean(reprogrammingPoint)}
+        onClose={() => setReprogrammingPoint(null)}
+        point={reprogrammingPoint}
+      />
     </div>
   )
 }

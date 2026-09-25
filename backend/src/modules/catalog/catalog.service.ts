@@ -81,7 +81,7 @@ export class CatalogService {
         direccion: input.direccion,
         empresa_responsable: input.empresaResponsable,
         tipo_exigencia: input.tipoExigencia,
-        descripcion_exigencia: input.descripcionExigencia,
+        descripcion_exigencia: input.descripcionExigencia ?? '',
         ventana_entrada: input.ventanaEntrada,
         ventana_salida: input.ventanaSalida,
         vigencia_desde: input.vigenciaDesde,
