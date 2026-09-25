@@ -11,8 +11,10 @@ import type { DailyRouteAssignment } from '../types'
 import { ESTADO_ASIGNACION_LABEL, ESTADO_ASIGNACION_OPTIONS, ESTADOS_LIBERABLES, formatDateTime } from '../utils/estado'
 import { useReleaseAssignment, useUpdateAssignment, useUploadFiscalizacionFotos } from '../hooks/useDailyRoutes'
 import { getApiErrorMessage } from '../api/client'
+import { compressImage } from '../utils/image'
 
 const MAX_FOTOS = 4
+const MAX_RAW_INPUT_BYTES = 20 * 1024 * 1024
 const MAX_FOTO_SIZE_BYTES = 5 * 1024 * 1024
 const ALLOWED_FOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
@@ -42,6 +44,7 @@ export function RouteUpdateModal({ isOpen, onClose, assignment }: RouteUpdateMod
   const [confirmingRelease, setConfirmingRelease] = useState(false)
   const [selectedFotos, setSelectedFotos] = useState<File[]>([])
   const [fotosError, setFotosError] = useState<string | null>(null)
+  const [isCompressing, setIsCompressing] = useState(false)
 
   const {
     register,
@@ -73,6 +76,7 @@ export function RouteUpdateModal({ isOpen, onClose, assignment }: RouteUpdateMod
       setConfirmingRelease(false)
       setSelectedFotos([])
       setFotosError(null)
+      setIsCompressing(false)
     }
   }, [assignment?.id])
 
@@ -92,7 +96,7 @@ export function RouteUpdateModal({ isOpen, onClose, assignment }: RouteUpdateMod
   const isReadOnly = isLiberado || isFiscalizado
   const puedeLiberar = ESTADOS_LIBERABLES.includes(assignment.estado)
 
-  const handleFotosChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFotosChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? [])
     event.target.value = ''
     if (files.length === 0) return
@@ -101,13 +105,27 @@ export function RouteUpdateModal({ isOpen, onClose, assignment }: RouteUpdateMod
       setFotosError(`Puedes adjuntar como máximo ${MAX_FOTOS} fotos por fiscalización.`)
       return
     }
-    const invalid = files.find((file) => !ALLOWED_FOTO_TYPES.has(file.type) || file.size > MAX_FOTO_SIZE_BYTES)
+    const invalid = files.find((file) => !ALLOWED_FOTO_TYPES.has(file.type) || file.size > MAX_RAW_INPUT_BYTES)
     if (invalid) {
-      setFotosError('Cada foto debe ser JPG, PNG o WEBP y pesar como máximo 5MB.')
+      setFotosError('Cada foto debe ser JPG, PNG o WEBP y pesar como máximo 20MB.')
       return
     }
+
     setFotosError(null)
-    setSelectedFotos((prev) => [...prev, ...files])
+    setIsCompressing(true)
+    try {
+      // Downscaled/re-encoded client-side before upload — a typical multi-MB phone photo shrinks
+      // to a few hundred KB, which matters a lot given the free-tier Storage quota.
+      const compressed = await Promise.all(files.map((file) => compressImage(file)))
+      const tooLarge = compressed.find((file) => file.size > MAX_FOTO_SIZE_BYTES)
+      if (tooLarge) {
+        setFotosError('Una de las fotos sigue pesando más de 5MB incluso tras comprimirla. Intenta con otra foto.')
+        return
+      }
+      setSelectedFotos((prev) => [...prev, ...compressed])
+    } finally {
+      setIsCompressing(false)
+    }
   }
 
   const removeSelectedFoto = (index: number) => {
@@ -159,7 +177,7 @@ export function RouteUpdateModal({ isOpen, onClose, assignment }: RouteUpdateMod
     releaseMutation.mutate(assignment.id, { onSuccess: onClose })
   }
 
-  const isSaving = updateMutation.isPending || uploadFotosMutation.isPending
+  const isSaving = updateMutation.isPending || uploadFotosMutation.isPending || isCompressing
 
   return (
     <Modal
@@ -302,17 +320,18 @@ export function RouteUpdateModal({ isOpen, onClose, assignment }: RouteUpdateMod
           <div>
             <label className="mb-1.5 block text-sm font-medium text-slate-700">Fotos de evidencia (opcional)</label>
             <p className="mb-2 text-xs text-slate-500">
-              Hasta {MAX_FOTOS} fotos (JPG, PNG o WEBP, máx. 5MB c/u). Se agregan como una nueva fiscalización al historial; si
-              no escribes un comentario arriba, se guardan igual con uno genérico.
+              Hasta {MAX_FOTOS} fotos (JPG, PNG o WEBP). Se comprimen automáticamente antes de subirse. Se agregan como una
+              nueva fiscalización al historial; si no escribes un comentario arriba, se guardan igual con uno genérico.
             </p>
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp"
               multiple
               onChange={handleFotosChange}
-              disabled={selectedFotos.length >= MAX_FOTOS}
+              disabled={selectedFotos.length >= MAX_FOTOS || isCompressing}
               className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-primary-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-700 hover:file:bg-primary-100"
             />
+            {isCompressing ? <p className="mt-1 text-xs text-slate-500">Comprimiendo foto(s)…</p> : null}
             {fotosError ? <p className="mt-1 text-xs text-rose-600">{fotosError}</p> : null}
             {selectedFotos.length > 0 ? (
               <div className="mt-2 flex flex-wrap gap-2">
