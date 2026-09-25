@@ -111,8 +111,9 @@ del catálogo ahora tiene:
   visita.
 
 **Fotos de evidencia en cada fiscalización**: al agregar una nueva
-fiscalización, el inspector puede adjuntar hasta 4 fotos (JPG/PNG/WEBP, máx.
-5MB c/u) como evidencia de la visita.
+fiscalización, el inspector puede adjuntar hasta 3 fotos (JPG/PNG/WEBP) como
+evidencia de la visita — se comprimen automáticamente en el navegador antes de
+subirse para ahorrar espacio.
 - Se guardan en **Supabase Storage**, en un bucket privado
   (`fiscalizacion-fotos`) — no son públicas ni accesibles por URL directa.
 - **Cómo se ven**: cada vez que la app pide los registros de un inspector (o

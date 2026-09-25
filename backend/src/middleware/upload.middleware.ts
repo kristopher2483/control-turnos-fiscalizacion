@@ -4,7 +4,7 @@ import { badRequest } from '../utils/http-error';
 
 const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
-const MAX_FILES_PER_REQUEST = 4;
+const MAX_FILES_PER_REQUEST = 3;
 
 // Memory storage: files are streamed straight to Supabase Storage in the service layer,
 // never written to disk on our (ephemeral, free-tier) server.

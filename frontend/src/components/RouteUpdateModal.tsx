@@ -13,7 +13,7 @@ import { useReleaseAssignment, useUpdateAssignment, useUploadFiscalizacionFotos 
 import { getApiErrorMessage } from '../api/client'
 import { compressImage } from '../utils/image'
 
-const MAX_FOTOS = 4
+const MAX_FOTOS = 3
 const MAX_RAW_INPUT_BYTES = 20 * 1024 * 1024
 const MAX_FOTO_SIZE_BYTES = 5 * 1024 * 1024
 const ALLOWED_FOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
