@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchMe, login as loginRequest, type MeResponse } from '../api/auth.api'
 import { getApiErrorMessage, TOKEN_STORAGE_KEY } from '../api/client'
 
-const INACTIVITY_LIMIT_MS = 5 * 60 * 1000
+const INACTIVITY_LIMIT_MS = 15 * 60 * 1000
 const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'] as const
 
 export type AuthContextValue = {
