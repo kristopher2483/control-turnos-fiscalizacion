@@ -27,7 +27,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     key: 'mi-ruta-detalle',
-    label: 'Detalle de mi ruta',
+    label: 'Detalle Mi Ruta',
     to: '/mi-ruta/detalle',
     roles: ['inspector'],
     icon: (
