@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
@@ -19,6 +19,7 @@ export function AdminCatalogPage() {
   const [fechaDesde, setFechaDesde] = useState(todayIsoDate())
   const [fechaHasta, setFechaHasta] = useState(todayIsoDate())
   const [estadoDisponibilidad, setEstadoDisponibilidad] = useState<EstadoDisponibilidad | ''>('')
+  const [sectorFilter, setSectorFilter] = useState('')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingPoint, setEditingPoint] = useState<RoutePoint | null>(null)
   const [reprogrammingPoint, setReprogrammingPoint] = useState<RoutePoint | null>(null)
@@ -30,6 +31,12 @@ export function AdminCatalogPage() {
       ? { fechaDesde: '', fechaHasta: '' }
       : { fechaDesde, fechaHasta, estadoDisponibilidad: estadoDisponibilidad || undefined },
   )
+
+  const filteredPoints = useMemo(() => {
+    const term = sectorFilter.trim().toLowerCase()
+    if (!term) return catalogQuery.data ?? []
+    return (catalogQuery.data ?? []).filter((point) => point.sector.toLowerCase().includes(term))
+  }, [catalogQuery.data, sectorFilter])
 
   return (
     <div className="flex flex-col gap-6">
@@ -64,6 +71,14 @@ export function AdminCatalogPage() {
             <option value="tomado">Tomado</option>
           </Select>
         </div>
+        <div className="w-full sm:w-56">
+          <Input
+            label="Buscar por sector"
+            placeholder="Ej: UV-A1"
+            value={sectorFilter}
+            onChange={(event) => setSectorFilter(event.target.value)}
+          />
+        </div>
       </div>
 
       {rangoInvalido ? (
@@ -76,8 +91,15 @@ export function AdminCatalogPage() {
         <Spinner />
       ) : catalogQuery.isError ? (
         <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{getApiErrorMessage(catalogQuery.error)}</p>
-      ) : (catalogQuery.data ?? []).length === 0 ? (
-        <EmptyState title="No hay puntos para estos filtros" description="Crea un nuevo punto de inspección para comenzar." />
+      ) : filteredPoints.length === 0 ? (
+        <EmptyState
+          title="No hay puntos para estos filtros"
+          description={
+            sectorFilter
+              ? `Ningún punto coincide con "${sectorFilter}" en el rango seleccionado.`
+              : 'Crea un nuevo punto de inspección para comenzar.'
+          }
+        />
       ) : (
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
@@ -97,7 +119,7 @@ export function AdminCatalogPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {(catalogQuery.data ?? []).map((point) => (
+                {filteredPoints.map((point) => (
                   <tr key={point.id} className="hover:bg-slate-50/60">
                     <td className="px-4 py-3 text-slate-600">
                       <p className="font-medium text-slate-800">{formatDate(point.fecha)}</p>
