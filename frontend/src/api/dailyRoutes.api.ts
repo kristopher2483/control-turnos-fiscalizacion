@@ -19,6 +19,17 @@ export async function fetchMyRoutes(fecha: string): Promise<DailyRouteAssignment
   return data
 }
 
+export type FetchMyRoutesRangeParams = {
+  fechaDesde: string
+  fechaHasta: string
+  estado?: EstadoAsignacion
+}
+
+export async function fetchMyRoutesRange(params: FetchMyRoutesRangeParams): Promise<DailyRouteAssignment[]> {
+  const { data } = await apiClient.get<DailyRouteAssignment[]>('/daily-routes/mine', { params })
+  return data
+}
+
 export async function takeRoutePoint(input: TakeRouteInput): Promise<DailyRouteAssignment> {
   const { data } = await apiClient.post<DailyRouteAssignment>('/daily-routes/take', input)
   return data
@@ -50,6 +61,11 @@ export async function uploadFiscalizacionFotos(
     `/daily-routes/${id}/fiscalizaciones/${numero}/fotos`,
     formData,
   )
+  return data
+}
+
+export async function deleteFiscalizacionFoto(id: string, numero: number, index: number): Promise<DailyRouteAssignment> {
+  const { data } = await apiClient.delete<DailyRouteAssignment>(`/daily-routes/${id}/fiscalizaciones/${numero}/fotos/${index}`)
   return data
 }
 

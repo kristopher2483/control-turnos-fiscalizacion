@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { DailyRoutesService } from './daily-routes.service';
 import { unauthorized } from '../../utils/http-error';
+import { EstadoDailyRoute } from '../../types';
 
 export class DailyRoutesController {
   constructor(private readonly dailyRoutesService: DailyRoutesService) {}
@@ -9,8 +10,15 @@ export class DailyRoutesController {
     if (!req.user) {
       throw unauthorized();
     }
-    const { fecha } = req.query as { fecha: string };
-    const assignments = await this.dailyRoutesService.listMine(req.user.id, fecha);
+    const { fecha, fechaDesde, fechaHasta, estado } = req.query as {
+      fecha?: string;
+      fechaDesde?: string;
+      fechaHasta?: string;
+      estado?: EstadoDailyRoute;
+    };
+    const assignments = fecha
+      ? await this.dailyRoutesService.listMine(req.user.id, fecha)
+      : await this.dailyRoutesService.listMineRange(req.user.id, { fechaDesde: fechaDesde!, fechaHasta: fechaHasta!, estado });
     res.json(assignments);
   };
 
@@ -46,6 +54,16 @@ export class DailyRoutesController {
     const files = (req.files as Express.Multer.File[] | undefined) ?? [];
     const assignment = await this.dailyRoutesService.addFotos(req.params.id, numero, req.user, files);
     res.status(201).json(assignment);
+  };
+
+  deleteFoto = async (req: Request, res: Response): Promise<void> => {
+    if (!req.user) {
+      throw unauthorized();
+    }
+    const numero = Number(req.params.numero);
+    const index = Number(req.params.index);
+    const assignment = await this.dailyRoutesService.deleteFoto(req.params.id, numero, index, req.user);
+    res.json(assignment);
   };
 
   reprogramar = async (req: Request, res: Response): Promise<void> => {

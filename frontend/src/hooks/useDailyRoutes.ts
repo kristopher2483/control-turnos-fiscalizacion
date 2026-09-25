@@ -1,13 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  deleteFiscalizacionFoto,
   fetchAllRoutes,
   fetchMyRoutes,
+  fetchMyRoutesRange,
   releaseAssignment,
   reprogramAssignment,
   takeRoutePoint,
   updateAssignment,
   uploadFiscalizacionFotos,
   type FetchAllRoutesParams,
+  type FetchMyRoutesRangeParams,
   type TakeRouteInput,
   type UpdateAssignmentInput,
 } from '../api/dailyRoutes.api'
@@ -17,6 +20,14 @@ export function useMyRoutesQuery(fecha: string) {
     queryKey: ['daily-routes', 'mine', fecha],
     queryFn: () => fetchMyRoutes(fecha),
     enabled: Boolean(fecha),
+  })
+}
+
+export function useMyRoutesRangeQuery(params: FetchMyRoutesRangeParams) {
+  return useQuery({
+    queryKey: ['daily-routes', 'mine-range', params],
+    queryFn: () => fetchMyRoutesRange(params),
+    enabled: Boolean(params.fechaDesde && params.fechaHasta),
   })
 }
 
@@ -32,8 +43,8 @@ export function useTakeRoutePoint() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (input: TakeRouteInput) => takeRoutePoint(input),
-    onSuccess: (assignment) => {
-      queryClient.invalidateQueries({ queryKey: ['daily-routes', 'mine', assignment.fecha] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['daily-routes'] })
       queryClient.invalidateQueries({ queryKey: ['catalog'] })
     },
   })
@@ -43,9 +54,8 @@ export function useUpdateAssignment() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: UpdateAssignmentInput }) => updateAssignment(id, input),
-    onSuccess: (assignment) => {
-      queryClient.invalidateQueries({ queryKey: ['daily-routes', 'mine', assignment.fecha] })
-      queryClient.invalidateQueries({ queryKey: ['daily-routes', 'all'] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['daily-routes'] })
     },
   })
 }
@@ -54,9 +64,8 @@ export function useReleaseAssignment() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => releaseAssignment(id),
-    onSuccess: (assignment) => {
-      queryClient.invalidateQueries({ queryKey: ['daily-routes', 'mine', assignment.fecha] })
-      queryClient.invalidateQueries({ queryKey: ['daily-routes', 'all'] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['daily-routes'] })
       queryClient.invalidateQueries({ queryKey: ['catalog'] })
     },
   })
@@ -77,9 +86,19 @@ export function useUploadFiscalizacionFotos() {
   return useMutation({
     mutationFn: ({ id, numero, files }: { id: string; numero: number; files: File[] }) =>
       uploadFiscalizacionFotos(id, numero, files),
-    onSuccess: (assignment) => {
-      queryClient.invalidateQueries({ queryKey: ['daily-routes', 'mine', assignment.fecha] })
-      queryClient.invalidateQueries({ queryKey: ['daily-routes', 'all'] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['daily-routes'] })
+    },
+  })
+}
+
+export function useDeleteFiscalizacionFoto() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, numero, index }: { id: string; numero: number; index: number }) =>
+      deleteFiscalizacionFoto(id, numero, index),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['daily-routes'] })
     },
   })
 }

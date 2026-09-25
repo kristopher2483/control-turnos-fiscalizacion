@@ -3,6 +3,7 @@ import { AppLayout } from '../components/layout/AppLayout'
 import { ProtectedRoute } from '../components/ProtectedRoute'
 import { LoginPage } from '../pages/LoginPage'
 import { InspectorRoutePage } from '../pages/InspectorRoutePage'
+import { InspectorRouteDetailPage } from '../pages/InspectorRouteDetailPage'
 import { AdminDashboardPage } from '../pages/AdminDashboardPage'
 import { AdminUsersPage } from '../pages/AdminUsersPage'
 import { AdminCatalogPage } from '../pages/AdminCatalogPage'
@@ -25,6 +26,7 @@ export function AppRouter() {
           }
         >
           <Route index element={<InspectorRoutePage />} />
+          <Route path="detalle" element={<InspectorRouteDetailPage />} />
         </Route>
 
         <Route

@@ -9,7 +9,12 @@ import { TextArea } from './ui/TextArea'
 import { Input } from './ui/Input'
 import type { DailyRouteAssignment } from '../types'
 import { ESTADO_ASIGNACION_LABEL, ESTADO_ASIGNACION_OPTIONS, ESTADOS_LIBERABLES, formatDateTime } from '../utils/estado'
-import { useReleaseAssignment, useUpdateAssignment, useUploadFiscalizacionFotos } from '../hooks/useDailyRoutes'
+import {
+  useDeleteFiscalizacionFoto,
+  useReleaseAssignment,
+  useUpdateAssignment,
+  useUploadFiscalizacionFotos,
+} from '../hooks/useDailyRoutes'
 import { getApiErrorMessage } from '../api/client'
 import { compressImage } from '../utils/image'
 
@@ -41,10 +46,14 @@ export function RouteUpdateModal({ isOpen, onClose, assignment }: RouteUpdateMod
   const updateMutation = useUpdateAssignment()
   const releaseMutation = useReleaseAssignment()
   const uploadFotosMutation = useUploadFiscalizacionFotos()
+  const deleteFotoMutation = useDeleteFiscalizacionFoto()
   const [confirmingRelease, setConfirmingRelease] = useState(false)
   const [selectedFotos, setSelectedFotos] = useState<File[]>([])
   const [fotosError, setFotosError] = useState<string | null>(null)
   const [isCompressing, setIsCompressing] = useState(false)
+  // Mirrors the `assignment` prop but can be refreshed locally right after deleting a photo, so the
+  // historial list reflects the removal immediately without closing the modal.
+  const [displayAssignment, setDisplayAssignment] = useState(assignment)
 
   const {
     register,
@@ -73,10 +82,12 @@ export function RouteUpdateModal({ isOpen, onClose, assignment }: RouteUpdateMod
       updateMutation.reset()
       releaseMutation.reset()
       uploadFotosMutation.reset()
+      deleteFotoMutation.reset()
       setConfirmingRelease(false)
       setSelectedFotos([])
       setFotosError(null)
       setIsCompressing(false)
+      setDisplayAssignment(assignment)
     }
   }, [assignment?.id])
 
@@ -90,6 +101,11 @@ export function RouteUpdateModal({ isOpen, onClose, assignment }: RouteUpdateMod
   }, [selectedFotos])
 
   if (!assignment) return null
+
+  // `displayAssignment` is only synced to a newly-opened `assignment` via an effect, which runs one
+  // render after the prop changes — fall back to `assignment` itself until then, so the very first
+  // render after opening a different record never reads off a stale/mismatched (or still-null) value.
+  const historyAssignment = displayAssignment && displayAssignment.id === assignment.id ? displayAssignment : assignment
 
   const isLiberado = assignment.estado === 'liberado'
   const isFiscalizado = assignment.estado === 'fiscalizado'
@@ -152,17 +168,19 @@ export function RouteUpdateModal({ isOpen, onClose, assignment }: RouteUpdateMod
       },
       {
         onSuccess: async (updated) => {
+          setDisplayAssignment(updated)
           if (selectedFotos.length === 0) {
             onClose()
             return
           }
           const nuevaFiscalizacion = updated.fiscalizaciones[updated.fiscalizaciones.length - 1]
           try {
-            await uploadFotosMutation.mutateAsync({
+            const withFotos = await uploadFotosMutation.mutateAsync({
               id: assignment.id,
               numero: nuevaFiscalizacion.numero,
               files: selectedFotos,
             })
+            setDisplayAssignment(withFotos)
             onClose()
           } catch {
             // Keep the modal open: the fiscalización comment already saved, but the photos didn't
@@ -175,6 +193,14 @@ export function RouteUpdateModal({ isOpen, onClose, assignment }: RouteUpdateMod
 
   const handleRelease = () => {
     releaseMutation.mutate(assignment.id, { onSuccess: onClose })
+  }
+
+  const handleDeleteFoto = (numero: number, index: number) => {
+    if (!window.confirm('¿Eliminar esta foto? Esta acción no se puede deshacer.')) return
+    deleteFotoMutation.mutate(
+      { id: assignment.id, numero, index },
+      { onSuccess: (updated) => setDisplayAssignment(updated) },
+    )
   }
 
   const isSaving = updateMutation.isPending || uploadFotosMutation.isPending || isCompressing
@@ -270,16 +296,18 @@ export function RouteUpdateModal({ isOpen, onClose, assignment }: RouteUpdateMod
         <div>
           <p className="mb-1.5 text-sm font-medium text-slate-700">Historial de fiscalizaciones</p>
           <p className="mb-2 text-xs text-slate-500">
-            Este historial es de solo lectura: cada fiscalización queda registrada de forma permanente y no puede editarse ni
-            eliminarse.
+            El comentario y la hora de cada fiscalización quedan registrados de forma permanente y no pueden editarse.
+            {!isReadOnly
+              ? ' Mientras este registro siga pendiente o en progreso, puedes eliminar sus fotos si es necesario.'
+              : ' Este registro está cerrado, así que tampoco se pueden eliminar sus fotos.'}
           </p>
-          {assignment.fiscalizaciones.length === 0 ? (
+          {historyAssignment.fiscalizaciones.length === 0 ? (
             <p className="rounded-xl border border-dashed border-slate-300 px-3 py-3 text-sm text-slate-400">
               Todavía no hay fiscalizaciones registradas para este punto.
             </p>
           ) : (
             <ol className="max-h-56 space-y-3 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-              {assignment.fiscalizaciones.map((f) => (
+              {historyAssignment.fiscalizaciones.map((f) => (
                 <li key={f.numero} className="text-sm">
                   <span className="font-medium text-slate-700">
                     Fiscalización #{f.numero} · {formatDateTime(f.horaRegistro)}
@@ -288,16 +316,26 @@ export function RouteUpdateModal({ isOpen, onClose, assignment }: RouteUpdateMod
                   {f.fotos.length > 0 ? (
                     <div className="mt-1.5 flex flex-wrap gap-2">
                       {f.fotos.map((url, index) => (
-                        <a
-                          key={index}
-                          href={url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="block h-16 w-16 overflow-hidden rounded-lg border border-slate-200"
-                          title="Ver foto en tamaño completo"
-                        >
-                          <img src={url} alt={`Foto ${index + 1} de la fiscalización #${f.numero}`} className="h-full w-full object-cover" />
-                        </a>
+                        <div key={index} className="relative h-16 w-16 overflow-hidden rounded-lg border border-slate-200">
+                          <a href={url} target="_blank" rel="noreferrer" className="block h-full w-full" title="Ver foto en tamaño completo">
+                            <img
+                              src={url}
+                              alt={`Foto ${index + 1} de la fiscalización #${f.numero}`}
+                              className="h-full w-full object-cover"
+                            />
+                          </a>
+                          {!isReadOnly ? (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteFoto(f.numero, index)}
+                              disabled={deleteFotoMutation.isPending}
+                              aria-label={`Eliminar foto ${index + 1} de la fiscalización #${f.numero}`}
+                              className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-slate-900/70 text-[10px] leading-none text-white hover:bg-slate-900 disabled:opacity-50"
+                            >
+                              ×
+                            </button>
+                          ) : null}
+                        </div>
                       ))}
                     </div>
                   ) : null}
@@ -305,6 +343,9 @@ export function RouteUpdateModal({ isOpen, onClose, assignment }: RouteUpdateMod
               ))}
             </ol>
           )}
+          {deleteFotoMutation.isError ? (
+            <p className="mt-2 text-xs text-rose-600">{getApiErrorMessage(deleteFotoMutation.error)}</p>
+          ) : null}
         </div>
 
         <TextArea

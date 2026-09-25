@@ -1,6 +1,6 @@
 import { v4 as uuid } from 'uuid';
 import { supabase } from '../../db/supabase';
-import { AuthenticatedUser, DailyRouteAssignment } from '../../types';
+import { AuthenticatedUser, DailyRouteAssignment, EstadoDailyRoute } from '../../types';
 import { CatalogService } from '../catalog/catalog.service';
 import { badRequest, conflict, forbidden, notFound } from '../../utils/http-error';
 import { AdminListQuery, TakeRoutePointInput, UpdateAssignmentInput } from './daily-routes.schemas';
@@ -19,6 +19,25 @@ export class DailyRoutesService {
       .eq('inspector_id', inspectorId)
       .eq('fecha', fecha)
       .order('created_at');
+    if (error) throw error;
+    return this.withSignedUrlsMany(((data ?? []) as DailyRouteAssignmentRow[]).map(toAssignment));
+  }
+
+  async listMineRange(
+    inspectorId: string,
+    filters: { fechaDesde: string; fechaHasta: string; estado?: EstadoDailyRoute }
+  ): Promise<DailyRouteAssignment[]> {
+    let query = supabase
+      .from('daily_route_assignments')
+      .select('*')
+      .eq('inspector_id', inspectorId)
+      .gte('fecha', filters.fechaDesde)
+      .lte('fecha', filters.fechaHasta)
+      .order('fecha', { ascending: false });
+    if (filters.estado) {
+      query = query.eq('estado', filters.estado);
+    }
+    const { data, error } = await query;
     if (error) throw error;
     return this.withSignedUrlsMany(((data ?? []) as DailyRouteAssignmentRow[]).map(toAssignment));
   }
@@ -221,6 +240,53 @@ export class DailyRoutesService {
 
     const updatedFiscalizaciones = assignment.fiscalizaciones.map((f) =>
       f.numero === numero ? { ...f, fotos: [...f.fotos, ...uploadedPaths] } : f
+    );
+
+    const { data, error } = await supabase
+      .from('daily_route_assignments')
+      .update({ fiscalizaciones: updatedFiscalizaciones, updated_at: new Date().toISOString(), updated_by: user.id })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return this.withSignedUrls(toAssignment(data as DailyRouteAssignmentRow));
+  }
+
+  /**
+   * Removes one photo from a fiscalización — unlike addFotos, this IS blocked once the record is
+   * closed ('fiscalizado' or 'liberado'): deleting evidence from a definitively closed visit would
+   * break the "never delete" guarantee, so this is only allowed while the record is still open
+   * ('pendiente', 'en_progreso' or 'no_corresponde').
+   */
+  async deleteFoto(id: string, numero: number, index: number, user: AuthenticatedUser): Promise<DailyRouteAssignment> {
+    const assignment = await this.findById(id);
+    if (!assignment) {
+      throw notFound('Registro de ruta diaria no encontrado');
+    }
+    if (assignment.inspectorId !== user.id) {
+      throw forbidden('No puede modificar un registro que no le pertenece');
+    }
+    if (assignment.estado === 'liberado') {
+      throw conflict('Esta ruta ya fue liberada y no puede editarse.');
+    }
+    if (assignment.estado === 'fiscalizado') {
+      throw conflict('Esta ruta ya fue fiscalizada y no puede editarse.');
+    }
+
+    const target = assignment.fiscalizaciones.find((f) => f.numero === numero);
+    if (!target) {
+      throw notFound(`No existe la fiscalización #${numero} en este registro`);
+    }
+    const path = target.fotos[index];
+    if (path === undefined) {
+      throw notFound('La foto indicada no existe');
+    }
+
+    const { error: removeError } = await supabase.storage.from(FOTOS_BUCKET).remove([path]);
+    if (removeError) throw removeError;
+
+    const updatedFiscalizaciones = assignment.fiscalizaciones.map((f) =>
+      f.numero === numero ? { ...f, fotos: f.fotos.filter((_, i) => i !== index) } : f
     );
 
     const { data, error } = await supabase

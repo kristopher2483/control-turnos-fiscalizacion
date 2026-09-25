@@ -26,6 +26,17 @@ export const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
+    key: 'mi-ruta-detalle',
+    label: 'Detalle de mi ruta',
+    to: '/mi-ruta/detalle',
+    roles: ['inspector'],
+    icon: (
+      <svg className={iconClass} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m-9 5h12a2 2 0 002-2V6.414a1 1 0 00-.293-.707l-3.414-3.414A1 1 0 0015.586 2H6a2 2 0 00-2 2v15a2 2 0 002 2z" />
+      </svg>
+    ),
+  },
+  {
     key: 'dashboard',
     label: 'Panel',
     to: '/admin',

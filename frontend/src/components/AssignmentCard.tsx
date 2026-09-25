@@ -2,14 +2,15 @@ import { Card, CardBody } from './ui/Card'
 import { Button } from './ui/Button'
 import { Badge } from './ui/Badge'
 import type { DailyRouteAssignment } from '../types'
-import { ESTADO_ASIGNACION_LABEL, ESTADO_ASIGNACION_TONE, formatDateTime } from '../utils/estado'
+import { ESTADO_ASIGNACION_LABEL, ESTADO_ASIGNACION_TONE, formatDate, formatDateTime } from '../utils/estado'
 
 type AssignmentCardProps = {
   assignment: DailyRouteAssignment
   onOpenUpdate: () => void
+  showFecha?: boolean
 }
 
-export function AssignmentCard({ assignment, onOpenUpdate }: AssignmentCardProps) {
+export function AssignmentCard({ assignment, onOpenUpdate, showFecha }: AssignmentCardProps) {
   const { snapshot } = assignment
 
   return (
@@ -17,6 +18,7 @@ export function AssignmentCard({ assignment, onOpenUpdate }: AssignmentCardProps
       <CardBody className="flex flex-1 flex-col gap-3">
         <div className="flex items-start justify-between gap-2">
           <div>
+            {showFecha ? <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{formatDate(assignment.fecha)}</p> : null}
             <p className="text-sm font-semibold text-slate-900">{snapshot.sector}</p>
             <p className="text-sm text-slate-600">{snapshot.direccion}</p>
           </div>

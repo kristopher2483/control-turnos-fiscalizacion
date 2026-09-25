@@ -7,6 +7,24 @@ export const fechaQuerySchema = z.object({
   fecha: fechaField
 });
 
+export const estadoEnum = z.enum(['pendiente', 'en_progreso', 'fiscalizado', 'no_corresponde', 'liberado']);
+
+export const mineListQuerySchema = z
+  .object({
+    fecha: fechaField.optional(),
+    fechaDesde: fechaField.optional(),
+    fechaHasta: fechaField.optional(),
+    estado: estadoEnum.optional()
+  })
+  .refine((data) => Boolean(data.fecha) || Boolean(data.fechaDesde && data.fechaHasta), {
+    message: 'Debe indicar fecha, o fechaDesde y fechaHasta'
+  })
+  .refine((data) => !data.fechaDesde || !data.fechaHasta || data.fechaDesde <= data.fechaHasta, {
+    message: 'fechaDesde debe ser anterior o igual a fechaHasta'
+  });
+
+export type MineListQuery = z.infer<typeof mineListQuerySchema>;
+
 export const adminListQuerySchema = z
   .object({
     fechaDesde: fechaField.optional(),
@@ -25,8 +43,6 @@ export const takeRoutePointSchema = z.object({
   routePointId: z.string().min(1, 'routePointId es requerido'),
   fecha: fechaField
 });
-
-export const estadoEnum = z.enum(['pendiente', 'en_progreso', 'fiscalizado', 'no_corresponde', 'liberado']);
 
 // 'liberado' is intentionally excluded here: releasing a route has side effects (it frees the
 // catalog point for other inspectors) and must go through the dedicated /release endpoint, not
