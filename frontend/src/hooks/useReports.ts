@@ -11,6 +11,6 @@ export function useSummaryQuery(params: SummaryParams) {
 
 export function useExportCsv() {
   return useMutation({
-    mutationFn: (fecha: string) => exportRecordsCsv(fecha),
+    mutationFn: (params: SummaryParams) => exportRecordsCsv(params),
   })
 }

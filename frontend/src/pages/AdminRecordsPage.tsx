@@ -11,18 +11,22 @@ import { useAllRoutesQuery } from '../hooks/useDailyRoutes'
 import { useUsersQuery } from '../hooks/useUsers'
 import { useExportCsv } from '../hooks/useReports'
 import { getApiErrorMessage } from '../api/client'
-import { ESTADO_ASIGNACION_LABEL, ESTADO_ASIGNACION_TONE, todayIsoDate } from '../utils/estado'
+import { ESTADO_ASIGNACION_LABEL, ESTADO_ASIGNACION_TONE, formatDate, isoDateDaysAgo, todayIsoDate } from '../utils/estado'
 import type { DailyRouteAssignment } from '../types'
 
 export function AdminRecordsPage() {
-  const [fecha, setFecha] = useState(todayIsoDate())
+  const [fechaDesde, setFechaDesde] = useState(isoDateDaysAgo(6))
+  const [fechaHasta, setFechaHasta] = useState(todayIsoDate())
   const [inspectorId, setInspectorId] = useState('')
   const [viewingFotosFor, setViewingFotosFor] = useState<DailyRouteAssignment | null>(null)
 
   const usersQuery = useUsersQuery()
   const inspectors = useMemo(() => (usersQuery.data ?? []).filter((user) => user.role.name === 'inspector'), [usersQuery.data])
 
-  const routesQuery = useAllRoutesQuery({ fecha, inspectorId: inspectorId || undefined })
+  const rangoInvalido = fechaDesde > fechaHasta
+  const routesQuery = useAllRoutesQuery(
+    rangoInvalido ? { inspectorId: inspectorId || undefined } : { fechaDesde, fechaHasta, inspectorId: inspectorId || undefined },
+  )
   const exportCsvMutation = useExportCsv()
 
   return (
@@ -32,14 +36,22 @@ export function AdminRecordsPage() {
           <h1 className="text-xl font-semibold text-slate-900">Registros de fiscalización</h1>
           <p className="mt-0.5 text-sm text-slate-500">Consulta las visitas registradas por todos los inspectores.</p>
         </div>
-        <Button variant="outline" onClick={() => exportCsvMutation.mutate(fecha)} isLoading={exportCsvMutation.isPending}>
+        <Button
+          variant="outline"
+          onClick={() => exportCsvMutation.mutate({ desde: fechaDesde, hasta: fechaHasta })}
+          isLoading={exportCsvMutation.isPending}
+          disabled={rangoInvalido}
+        >
           Exportar CSV
         </Button>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="w-full sm:w-56">
-          <Input label="Fecha" type="date" value={fecha} onChange={(event) => setFecha(event.target.value)} />
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        <div className="w-full sm:w-48">
+          <Input label="Desde" type="date" value={fechaDesde} onChange={(event) => setFechaDesde(event.target.value)} />
+        </div>
+        <div className="w-full sm:w-48">
+          <Input label="Hasta" type="date" value={fechaHasta} onChange={(event) => setFechaHasta(event.target.value)} />
         </div>
         <div className="w-full sm:w-64">
           <Select label="Inspector" value={inspectorId} onChange={(event) => setInspectorId(event.target.value)}>
@@ -53,11 +65,17 @@ export function AdminRecordsPage() {
         </div>
       </div>
 
+      {rangoInvalido ? (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
+          La fecha "Desde" no puede ser posterior a la fecha "Hasta".
+        </p>
+      ) : null}
+
       {exportCsvMutation.isError ? (
         <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{getApiErrorMessage(exportCsvMutation.error)}</p>
       ) : null}
 
-      {routesQuery.isPending ? (
+      {rangoInvalido ? null : routesQuery.isPending ? (
         <Spinner />
       ) : routesQuery.isError ? (
         <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{getApiErrorMessage(routesQuery.error)}</p>
@@ -66,9 +84,10 @@ export function AdminRecordsPage() {
       ) : (
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1080px] divide-y divide-slate-100 text-sm">
+            <table className="w-full min-w-[1160px] divide-y divide-slate-100 text-sm">
               <thead className="bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                 <tr>
+                  <th className="px-4 py-3">Fecha</th>
                   <th className="px-4 py-3">Inspector</th>
                   <th className="px-4 py-3">Sector</th>
                   <th className="px-4 py-3">Dirección</th>
@@ -85,6 +104,7 @@ export function AdminRecordsPage() {
                   const cantidadFotos = assignment.fiscalizaciones.reduce((total, f) => total + f.fotos.length, 0)
                   return (
                     <tr key={assignment.id} className="hover:bg-slate-50/60">
+                      <td className="px-4 py-3 text-slate-600">{formatDate(assignment.fecha)}</td>
                       <td className="px-4 py-3 font-medium text-slate-800">{assignment.inspectorUsername}</td>
                       <td className="px-4 py-3 text-slate-600">{assignment.snapshot.sector}</td>
                       <td className="px-4 py-3 text-slate-600">{assignment.snapshot.direccion}</td>

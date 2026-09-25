@@ -11,12 +11,6 @@ export interface SummaryReport {
 }
 
 export class ReportsService {
-  private async listAssignmentsForFecha(fecha: string): Promise<DailyRouteAssignment[]> {
-    const { data, error } = await supabase.from('daily_route_assignments').select('*').eq('fecha', fecha);
-    if (error) throw error;
-    return ((data ?? []) as DailyRouteAssignmentRow[]).map(toAssignment);
-  }
-
   private async listAssignmentsInRange(desde: string, hasta: string): Promise<DailyRouteAssignment[]> {
     const { data, error } = await supabase
       .from('daily_route_assignments')
@@ -56,8 +50,8 @@ export class ReportsService {
     };
   }
 
-  async exportCsv(fecha: string): Promise<string> {
-    const assignments = await this.listAssignmentsForFecha(fecha);
+  async exportCsv(desde: string, hasta: string): Promise<string> {
+    const assignments = await this.listAssignmentsInRange(desde, hasta);
 
     const header = [
       'inspector',

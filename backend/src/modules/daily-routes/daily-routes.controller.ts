@@ -49,7 +49,9 @@ export class DailyRoutesController {
   };
 
   listAll = async (req: Request, res: Response): Promise<void> => {
-    const assignments = await this.dailyRoutesService.listAll(req.query as { fecha?: string; inspectorId?: string });
+    const assignments = await this.dailyRoutesService.listAll(
+      req.query as { fechaDesde?: string; fechaHasta?: string; inspectorId?: string }
+    );
     res.json(assignments);
   };
 }

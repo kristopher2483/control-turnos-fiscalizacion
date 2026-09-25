@@ -135,8 +135,11 @@ export class DailyRoutesService {
 
   async listAll(filters: AdminListQuery): Promise<DailyRouteAssignment[]> {
     let query = supabase.from('daily_route_assignments').select('*').order('fecha', { ascending: false });
-    if (filters.fecha) {
-      query = query.eq('fecha', filters.fecha);
+    if (filters.fechaDesde) {
+      query = query.gte('fecha', filters.fechaDesde);
+    }
+    if (filters.fechaHasta) {
+      query = query.lte('fecha', filters.fechaHasta);
     }
     if (filters.inspectorId) {
       query = query.eq('inspector_id', filters.inspectorId);

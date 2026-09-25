@@ -49,7 +49,8 @@ export async function uploadFiscalizacionFotos(
 }
 
 export type FetchAllRoutesParams = {
-  fecha?: string
+  fechaDesde?: string
+  fechaHasta?: string
   inspectorId?: string
 }
 

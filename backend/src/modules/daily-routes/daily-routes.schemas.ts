@@ -7,10 +7,15 @@ export const fechaQuerySchema = z.object({
   fecha: fechaField
 });
 
-export const adminListQuerySchema = z.object({
-  fecha: fechaField.optional(),
-  inspectorId: z.string().min(1).optional()
-});
+export const adminListQuerySchema = z
+  .object({
+    fechaDesde: fechaField.optional(),
+    fechaHasta: fechaField.optional(),
+    inspectorId: z.string().min(1).optional()
+  })
+  .refine((data) => !data.fechaDesde || !data.fechaHasta || data.fechaDesde <= data.fechaHasta, {
+    message: 'fechaDesde debe ser anterior o igual a fechaHasta'
+  });
 
 export const takeRoutePointSchema = z.object({
   routePointId: z.string().min(1, 'routePointId es requerido'),

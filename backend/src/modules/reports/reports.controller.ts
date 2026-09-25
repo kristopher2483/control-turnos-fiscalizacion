@@ -11,10 +11,10 @@ export class ReportsController {
   };
 
   exportCsv = async (req: Request, res: Response): Promise<void> => {
-    const { fecha } = req.query as { fecha: string };
-    const csv = await this.reportsService.exportCsv(fecha);
+    const { desde, hasta } = req.query as { desde: string; hasta: string };
+    const csv = await this.reportsService.exportCsv(desde, hasta);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="registros-${fecha}.csv"`);
+    res.setHeader('Content-Disposition', `attachment; filename="registros-${desde}_a_${hasta}.csv"`);
     res.status(200).send(csv);
   };
 }

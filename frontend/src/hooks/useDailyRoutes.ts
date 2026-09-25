@@ -23,7 +23,7 @@ export function useAllRoutesQuery(params: FetchAllRoutesParams) {
   return useQuery({
     queryKey: ['daily-routes', 'all', params],
     queryFn: () => fetchAllRoutes(params),
-    enabled: Boolean(params.fecha),
+    enabled: Boolean(params.fechaDesde && params.fechaHasta),
   })
 }
 

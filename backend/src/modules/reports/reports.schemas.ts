@@ -10,9 +10,12 @@ export const summaryQuerySchema = z
   })
   .refine((data) => data.desde <= data.hasta, { message: 'desde debe ser anterior o igual a hasta' });
 
-export const exportQuerySchema = z.object({
-  fecha: fechaField
-});
+export const exportQuerySchema = z
+  .object({
+    desde: fechaField,
+    hasta: fechaField
+  })
+  .refine((data) => data.desde <= data.hasta, { message: 'desde debe ser anterior o igual a hasta' });
 
 export type SummaryQuery = z.infer<typeof summaryQuerySchema>;
 export type ExportQuery = z.infer<typeof exportQuerySchema>;
