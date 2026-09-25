@@ -10,7 +10,7 @@ import { getApiErrorMessage } from '../api/client'
 import type { User } from '../types'
 
 const resetPasswordSchema = z.object({
-  newPassword: z.string().min(8, 'Mínimo 8 caracteres'),
+  newPassword: z.string().min(6, 'Mínimo 6 caracteres'),
 })
 
 type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>

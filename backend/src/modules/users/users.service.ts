@@ -86,8 +86,15 @@ export class UsersService {
         throw badRequest(`roleId "${input.roleId}" no corresponde a un rol existente`);
       }
     }
+    if (input.username) {
+      const existing = await this.findUserByUsername(input.username);
+      if (existing && existing.id !== id) {
+        throw conflict(`Ya existe un usuario con username "${input.username}"`);
+      }
+    }
 
     const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (input.username !== undefined) patch.username = input.username;
     if (input.fullName !== undefined) patch.full_name = input.fullName;
     if (input.email !== undefined) patch.email = input.email;
     if (input.roleId !== undefined) patch.role_id = input.roleId;

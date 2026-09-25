@@ -10,6 +10,7 @@ export const createUserSchema = z.object({
 
 export const updateUserSchema = z
   .object({
+    username: z.string().min(3, 'username debe tener al menos 3 caracteres').optional(),
     fullName: z.string().min(1).optional(),
     email: z.string().email().optional(),
     roleId: z.string().min(1).optional(),

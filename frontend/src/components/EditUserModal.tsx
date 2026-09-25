@@ -13,6 +13,7 @@ import { getApiErrorMessage } from '../api/client'
 import type { User } from '../types'
 
 const editUserSchema = z.object({
+  username: z.string().min(3, 'Mínimo 3 caracteres'),
   fullName: z.string().min(1, 'Ingresa el nombre completo'),
   email: z.string().email('Correo inválido'),
   roleId: z.string().min(1, 'Selecciona un rol'),
@@ -38,12 +39,12 @@ export function EditUserModal({ isOpen, onClose, user }: EditUserModalProps) {
     formState: { errors },
   } = useForm<EditUserFormValues>({
     resolver: zodResolver(editUserSchema),
-    defaultValues: { fullName: '', email: '', roleId: '' },
+    defaultValues: { username: '', fullName: '', email: '', roleId: '' },
   })
 
   useEffect(() => {
     if (user) {
-      reset({ fullName: user.fullName, email: user.email, roleId: user.roleId })
+      reset({ username: user.username, fullName: user.fullName, email: user.email, roleId: user.roleId })
       setActive(user.active)
       updateUserMutation.reset()
     }
@@ -72,6 +73,7 @@ export function EditUserModal({ isOpen, onClose, user }: EditUserModalProps) {
       }
     >
       <form id="edit-user-form" onSubmit={onSubmit} className="flex flex-col gap-4">
+        <Input label="Usuario" error={errors.username?.message} {...register('username')} />
         <Input label="Nombre completo" error={errors.fullName?.message} {...register('fullName')} />
         <Input label="Correo electrónico" type="email" error={errors.email?.message} {...register('email')} />
         <Select label="Rol" error={errors.roleId?.message} disabled={rolesQuery.isPending} {...register('roleId')}>
