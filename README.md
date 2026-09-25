@@ -110,6 +110,20 @@ del catálogo ahora tiene:
   el inspector asignado igual debe "tomarlo" para empezar a registrar la
   visita.
 
+**Importar puntos desde Excel/CSV**: en Catálogo → "Importar Excel/CSV" el
+admin sube un archivo `.csv` o `.xlsx` con varios puntos a la vez, en lugar de
+crearlos uno por uno. La plantilla descargable desde el mismo modal trae los
+encabezados esperados (`fecha`, `diaProgramado`, `sector`, `direccion`,
+`empresaResponsable`, `tipoExigencia`, `descripcionExigencia`,
+`ventanaEntrada`, `ventanaSalida`, `vigenciaDesde`, `vigenciaHasta`,
+`inspectorAsignado`). Cada fila se valida y crea de forma independiente: las
+filas válidas se importan aunque otras tengan errores, y el resultado muestra
+cuántas se crearon y el detalle fila por fila de las que fallaron, para
+corregirlas y volver a subir solo esas. `inspectorAsignado` acepta el
+username o el nombre completo del inspector, y es opcional igual que
+`descripcionExigencia`. Las fechas/horas se aceptan tanto en formato texto
+(`AAAA-MM-DD`, `HH:MM`) como en celdas de fecha/hora reales de Excel.
+
 **Fotos de evidencia en cada fiscalización**: al agregar una nueva
 fiscalización, el inspector puede adjuntar hasta 3 fotos (JPG/PNG/WEBP) como
 evidencia de la visita — se comprimen automáticamente en el navegador antes de

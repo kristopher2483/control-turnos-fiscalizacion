@@ -9,6 +9,7 @@ import { EmptyState } from '../components/ui/EmptyState'
 import { CreateRoutePointModal } from '../components/CreateRoutePointModal'
 import { EditRoutePointModal } from '../components/EditRoutePointModal'
 import { ReprogramarPuntoModal } from '../components/ReprogramarPuntoModal'
+import { ImportCatalogModal } from '../components/ImportCatalogModal'
 import { useCatalogRangeQuery } from '../hooks/useCatalog'
 import { getApiErrorMessage } from '../api/client'
 import { ESTADO_DISPONIBILIDAD_LABEL, ESTADO_DISPONIBILIDAD_TONE, formatDate, todayIsoDate } from '../utils/estado'
@@ -21,6 +22,7 @@ export function AdminCatalogPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingPoint, setEditingPoint] = useState<RoutePoint | null>(null)
   const [reprogrammingPoint, setReprogrammingPoint] = useState<RoutePoint | null>(null)
+  const [isImportOpen, setIsImportOpen] = useState(false)
 
   const rangoInvalido = fechaDesde > fechaHasta
   const catalogQuery = useCatalogRangeQuery(
@@ -36,7 +38,12 @@ export function AdminCatalogPage() {
           <h1 className="text-xl font-semibold text-slate-900">Catálogo de puntos</h1>
           <p className="mt-0.5 text-sm text-slate-500">Crea y edita los puntos de inspección disponibles para cada fecha.</p>
         </div>
-        <Button onClick={() => setIsCreateOpen(true)}>Nuevo punto</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsImportOpen(true)}>
+            Importar Excel/CSV
+          </Button>
+          <Button onClick={() => setIsCreateOpen(true)}>Nuevo punto</Button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
@@ -137,6 +144,7 @@ export function AdminCatalogPage() {
         onClose={() => setReprogrammingPoint(null)}
         point={reprogrammingPoint}
       />
+      <ImportCatalogModal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} />
     </div>
   )
 }

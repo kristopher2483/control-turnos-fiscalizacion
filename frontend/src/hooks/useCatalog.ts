@@ -3,6 +3,7 @@ import {
   createRoutePoint,
   fetchCatalog,
   fetchCatalogRange,
+  importCatalog,
   updateRoutePoint,
   type CreateRoutePointInput,
   type FetchCatalogRangeParams,
@@ -39,6 +40,16 @@ export function useUpdateRoutePoint() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: UpdateRoutePointInput }) => updateRoutePoint(id, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['catalog'] })
+    },
+  })
+}
+
+export function useImportCatalog() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (file: File) => importCatalog(file),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['catalog'] })
     },

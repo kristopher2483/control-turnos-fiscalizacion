@@ -37,3 +37,33 @@ export function uploadFotos(req: Request, res: Response, next: NextFunction): vo
     next(err);
   });
 }
+
+const MAX_IMPORT_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+
+// MIME types for CSV/XLSX are reported inconsistently across browsers/OSes (a .csv can show up as
+// text/csv, application/vnd.ms-excel or even text/plain), so this validates by extension instead.
+const importUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_IMPORT_FILE_SIZE_BYTES, files: 1 },
+  fileFilter: (_req, file, callback) => {
+    if (!/\.(csv|xlsx)$/i.test(file.originalname)) {
+      callback(badRequest('El archivo debe ser .csv o .xlsx'));
+      return;
+    }
+    callback(null, true);
+  }
+}).single('file');
+
+export function uploadImportFile(req: Request, res: Response, next: NextFunction): void {
+  importUpload(req, res, (err: unknown) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        next(badRequest('El archivo debe pesar como máximo 5MB'));
+        return;
+      }
+      next(badRequest(err.message));
+      return;
+    }
+    next(err);
+  });
+}

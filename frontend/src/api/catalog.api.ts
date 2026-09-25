@@ -45,3 +45,15 @@ export async function updateRoutePoint(id: string, input: UpdateRoutePointInput)
   const { data } = await apiClient.put<RoutePoint>(`/catalog/${id}`, input)
   return data
 }
+
+export type ImportCatalogResult = {
+  insertedCount: number
+  errors: Array<{ row: number; message: string }>
+}
+
+export async function importCatalog(file: File): Promise<ImportCatalogResult> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const { data } = await apiClient.post<ImportCatalogResult>('/catalog/import', formData)
+  return data
+}
