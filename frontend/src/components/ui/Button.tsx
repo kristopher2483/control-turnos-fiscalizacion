@@ -18,7 +18,7 @@ const variantClasses: Record<Variant, string> = {
   outline: 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 focus-visible:ring-primary-500',
   ghost: 'bg-transparent text-slate-600 hover:bg-slate-100 focus-visible:ring-slate-400',
   danger: 'bg-rose-600 text-white hover:bg-rose-700 focus-visible:ring-rose-500 shadow-sm',
-  accent: 'bg-[#D91E8C] text-white hover:bg-[#B8156F] focus-visible:ring-[#D91E8C] shadow-sm',
+  accent: 'bg-[#C3DE6B] text-slate-900 hover:bg-[#B0CE4F] focus-visible:ring-[#C3DE6B] shadow-sm',
 }
 
 const sizeClasses: Record<Size, string> = {
