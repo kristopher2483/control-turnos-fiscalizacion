@@ -48,6 +48,14 @@ export class DailyRoutesController {
     res.status(201).json(assignment);
   };
 
+  reprogramar = async (req: Request, res: Response): Promise<void> => {
+    if (!req.user) {
+      throw unauthorized();
+    }
+    const assignment = await this.dailyRoutesService.reprogramar(req.params.id, req.user, req.body.fecha);
+    res.json(assignment);
+  };
+
   listAll = async (req: Request, res: Response): Promise<void> => {
     const assignments = await this.dailyRoutesService.listAll(
       req.query as { fechaDesde?: string; fechaHasta?: string; inspectorId?: string }

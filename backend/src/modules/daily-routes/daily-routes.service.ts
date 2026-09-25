@@ -133,6 +133,35 @@ export class DailyRoutesService {
     return toAssignment(data as DailyRouteAssignmentRow);
   }
 
+  /**
+   * Admin-only: moves a record to a different date so the inspector sees it again under that day
+   * in "Mi ruta". Blocked for 'fiscalizado' (definitively closed, same rule as update()) and
+   * 'liberado' (already back in the pool for anyone — nothing tied to an inspector to reschedule).
+   * Resets estado to 'pendiente' since the record starts a fresh visit on the new date; the rest of
+   * the history (observaciones, fiscalizaciones, horas) is preserved, never cleared.
+   */
+  async reprogramar(id: string, user: AuthenticatedUser, fecha: string): Promise<DailyRouteAssignment> {
+    const assignment = await this.findById(id);
+    if (!assignment) {
+      throw notFound('Registro de ruta diaria no encontrado');
+    }
+    if (assignment.estado === 'fiscalizado') {
+      throw conflict('Esta ruta ya fue fiscalizada y no puede reprogramarse.');
+    }
+    if (assignment.estado === 'liberado') {
+      throw conflict('Esta ruta ya fue liberada y no puede reprogramarse; el punto ya está disponible para tomarse en cualquier fecha.');
+    }
+
+    const { data, error } = await supabase
+      .from('daily_route_assignments')
+      .update({ fecha, estado: 'pendiente', updated_at: new Date().toISOString(), updated_by: user.id })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return this.withSignedUrls(toAssignment(data as DailyRouteAssignmentRow));
+  }
+
   async listAll(filters: AdminListQuery): Promise<DailyRouteAssignment[]> {
     let query = supabase.from('daily_route_assignments').select('*').order('fecha', { ascending: false });
     if (filters.fechaDesde) {

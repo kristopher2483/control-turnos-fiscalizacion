@@ -3,9 +3,23 @@ import { z } from 'zod';
 const fechaRegex = /^\d{4}-\d{2}-\d{2}$/;
 const fechaField = z.string().regex(fechaRegex, 'fecha debe tener formato YYYY-MM-DD');
 
-export const fechaQuerySchema = z.object({
-  fecha: fechaField
-});
+const estadoDisponibilidadEnum = z.enum(['disponible', 'tomado']);
+
+export const catalogListQuerySchema = z
+  .object({
+    fecha: fechaField.optional(),
+    fechaDesde: fechaField.optional(),
+    fechaHasta: fechaField.optional(),
+    estadoDisponibilidad: estadoDisponibilidadEnum.optional()
+  })
+  .refine((data) => Boolean(data.fecha) || Boolean(data.fechaDesde && data.fechaHasta), {
+    message: 'Debe indicar fecha, o fechaDesde y fechaHasta'
+  })
+  .refine((data) => !data.fechaDesde || !data.fechaHasta || data.fechaDesde <= data.fechaHasta, {
+    message: 'fechaDesde debe ser anterior o igual a fechaHasta'
+  });
+
+export type CatalogListQuery = z.infer<typeof catalogListQuerySchema>;
 
 export const createRoutePointSchema = z
   .object({

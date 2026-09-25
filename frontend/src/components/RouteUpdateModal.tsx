@@ -115,11 +115,11 @@ export function RouteUpdateModal({ isOpen, onClose, assignment }: RouteUpdateMod
   }
 
   const onSubmit = handleSubmit((values) => {
-    if (selectedFotos.length > 0 && !values.nuevoComentario?.trim()) {
-      setFotosError('Escribe un comentario para poder asociar las fotos a la nueva fiscalización.')
-      return
-    }
-    setFotosError(null)
+    const comentarioFiscalizacion = values.nuevoComentario?.trim()
+      ? values.nuevoComentario.trim()
+      : selectedFotos.length > 0
+        ? 'Evidencia fotográfica adjunta.'
+        : undefined
 
     updateMutation.mutate(
       {
@@ -129,7 +129,7 @@ export function RouteUpdateModal({ isOpen, onClose, assignment }: RouteUpdateMod
           observaciones: values.observaciones ?? '',
           horaLlegada: values.horaLlegada || undefined,
           horaSalida: values.horaSalida || undefined,
-          nuevaFiscalizacion: values.nuevoComentario?.trim() ? { comentario: values.nuevoComentario.trim() } : undefined,
+          nuevaFiscalizacion: comentarioFiscalizacion ? { comentario: comentarioFiscalizacion } : undefined,
         },
       },
       {
@@ -171,12 +171,7 @@ export function RouteUpdateModal({ isOpen, onClose, assignment }: RouteUpdateMod
         <div className="flex w-full flex-wrap items-center justify-between gap-3">
           <div>
             {puedeLiberar && !confirmingRelease ? (
-              <Button
-                variant="ghost"
-                type="button"
-                className="text-rose-600 hover:bg-rose-50"
-                onClick={() => setConfirmingRelease(true)}
-              >
+              <Button variant="warning" type="button" onClick={() => setConfirmingRelease(true)}>
                 Liberar ruta
               </Button>
             ) : null}
@@ -307,8 +302,8 @@ export function RouteUpdateModal({ isOpen, onClose, assignment }: RouteUpdateMod
           <div>
             <label className="mb-1.5 block text-sm font-medium text-slate-700">Fotos de evidencia (opcional)</label>
             <p className="mb-2 text-xs text-slate-500">
-              Hasta {MAX_FOTOS} fotos (JPG, PNG o WEBP, máx. 5MB c/u). Se adjuntan a la fiscalización que agregues arriba —
-              necesitas escribir un comentario para poder guardarlas.
+              Hasta {MAX_FOTOS} fotos (JPG, PNG o WEBP, máx. 5MB c/u). Se agregan como una nueva fiscalización al historial; si
+              no escribes un comentario arriba, se guardan igual con uno genérico.
             </p>
             <input
               type="file"

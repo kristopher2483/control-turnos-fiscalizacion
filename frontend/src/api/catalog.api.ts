@@ -25,6 +25,17 @@ export async function fetchCatalog(fecha: string): Promise<RoutePoint[]> {
   return data
 }
 
+export type FetchCatalogRangeParams = {
+  fechaDesde: string
+  fechaHasta: string
+  estadoDisponibilidad?: 'disponible' | 'tomado'
+}
+
+export async function fetchCatalogRange(params: FetchCatalogRangeParams): Promise<RoutePoint[]> {
+  const { data } = await apiClient.get<RoutePoint[]>('/catalog', { params })
+  return data
+}
+
 export async function createRoutePoint(input: CreateRoutePointInput): Promise<RoutePoint> {
   const { data } = await apiClient.post<RoutePoint>('/catalog', input)
   return data

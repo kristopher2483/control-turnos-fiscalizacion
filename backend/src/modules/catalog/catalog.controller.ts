@@ -6,8 +6,15 @@ export class CatalogController {
   constructor(private readonly catalogService: CatalogService) {}
 
   list = async (req: Request, res: Response): Promise<void> => {
-    const { fecha } = req.query as { fecha: string };
-    const points = await this.catalogService.listByFechaEnriched(fecha);
+    const { fecha, fechaDesde, fechaHasta, estadoDisponibilidad } = req.query as {
+      fecha?: string;
+      fechaDesde?: string;
+      fechaHasta?: string;
+      estadoDisponibilidad?: 'disponible' | 'tomado';
+    };
+    const points = fecha
+      ? await this.catalogService.listByFechaEnriched(fecha)
+      : await this.catalogService.listByRangeEnriched(fechaDesde!, fechaHasta!, estadoDisponibilidad);
     res.json(points);
   };
 

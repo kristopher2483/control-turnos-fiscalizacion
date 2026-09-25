@@ -3,6 +3,7 @@ import {
   fetchAllRoutes,
   fetchMyRoutes,
   releaseAssignment,
+  reprogramAssignment,
   takeRoutePoint,
   updateAssignment,
   uploadFiscalizacionFotos,
@@ -33,7 +34,7 @@ export function useTakeRoutePoint() {
     mutationFn: (input: TakeRouteInput) => takeRoutePoint(input),
     onSuccess: (assignment) => {
       queryClient.invalidateQueries({ queryKey: ['daily-routes', 'mine', assignment.fecha] })
-      queryClient.invalidateQueries({ queryKey: ['catalog', assignment.fecha] })
+      queryClient.invalidateQueries({ queryKey: ['catalog'] })
     },
   })
 }
@@ -56,7 +57,17 @@ export function useReleaseAssignment() {
     onSuccess: (assignment) => {
       queryClient.invalidateQueries({ queryKey: ['daily-routes', 'mine', assignment.fecha] })
       queryClient.invalidateQueries({ queryKey: ['daily-routes', 'all'] })
-      queryClient.invalidateQueries({ queryKey: ['catalog', assignment.fecha] })
+      queryClient.invalidateQueries({ queryKey: ['catalog'] })
+    },
+  })
+}
+
+export function useReprogramAssignment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, fecha }: { id: string; fecha: string }) => reprogramAssignment(id, fecha),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['daily-routes'] })
     },
   })
 }

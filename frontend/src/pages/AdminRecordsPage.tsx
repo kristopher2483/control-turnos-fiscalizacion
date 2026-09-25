@@ -7,6 +7,7 @@ import { Select } from '../components/ui/Select'
 import { Spinner } from '../components/ui/Spinner'
 import { EmptyState } from '../components/ui/EmptyState'
 import { FotosViewerModal } from '../components/FotosViewerModal'
+import { ReprogramarModal } from '../components/ReprogramarModal'
 import { useAllRoutesQuery } from '../hooks/useDailyRoutes'
 import { useUsersQuery } from '../hooks/useUsers'
 import { useExportCsv } from '../hooks/useReports'
@@ -19,6 +20,7 @@ export function AdminRecordsPage() {
   const [fechaHasta, setFechaHasta] = useState(todayIsoDate())
   const [inspectorId, setInspectorId] = useState('')
   const [viewingFotosFor, setViewingFotosFor] = useState<DailyRouteAssignment | null>(null)
+  const [reprogrammingFor, setReprogrammingFor] = useState<DailyRouteAssignment | null>(null)
 
   const usersQuery = useUsersQuery()
   const inspectors = useMemo(() => (usersQuery.data ?? []).filter((user) => user.role.name === 'inspector'), [usersQuery.data])
@@ -84,7 +86,7 @@ export function AdminRecordsPage() {
       ) : (
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1160px] divide-y divide-slate-100 text-sm">
+            <table className="w-full min-w-[1320px] divide-y divide-slate-100 text-sm">
               <thead className="bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-4 py-3">Fecha</th>
@@ -97,6 +99,7 @@ export function AdminRecordsPage() {
                   <th className="px-4 py-3 text-center">Fiscalizaciones</th>
                   <th className="px-4 py-3">Llegada / Salida</th>
                   <th className="px-4 py-3 text-right">Fotos</th>
+                  <th className="px-4 py-3 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -131,6 +134,16 @@ export function AdminRecordsPage() {
                           Ver ({cantidadFotos})
                         </Button>
                       </td>
+                      <td className="px-4 py-3 text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={assignment.estado === 'fiscalizado' || assignment.estado === 'liberado'}
+                          onClick={() => setReprogrammingFor(assignment)}
+                        >
+                          Reprogramar
+                        </Button>
+                      </td>
                     </tr>
                   )
                 })}
@@ -141,6 +154,11 @@ export function AdminRecordsPage() {
       )}
 
       <FotosViewerModal isOpen={Boolean(viewingFotosFor)} onClose={() => setViewingFotosFor(null)} assignment={viewingFotosFor} />
+      <ReprogramarModal
+        isOpen={Boolean(reprogrammingFor)}
+        onClose={() => setReprogrammingFor(null)}
+        assignment={reprogrammingFor}
+      />
     </div>
   )
 }

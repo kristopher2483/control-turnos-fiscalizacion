@@ -17,6 +17,10 @@ export const adminListQuerySchema = z
     message: 'fechaDesde debe ser anterior o igual a fechaHasta'
   });
 
+export const reprogramSchema = z.object({
+  fecha: fechaField
+});
+
 export const takeRoutePointSchema = z.object({
   routePointId: z.string().min(1, 'routePointId es requerido'),
   fecha: fechaField
@@ -46,3 +50,4 @@ export const updateAssignmentSchema = z
 export type TakeRoutePointInput = z.infer<typeof takeRoutePointSchema>;
 export type UpdateAssignmentInput = z.infer<typeof updateAssignmentSchema>;
 export type AdminListQuery = z.infer<typeof adminListQuerySchema>;
+export type ReprogramInput = z.infer<typeof reprogramSchema>;

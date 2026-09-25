@@ -20,6 +20,35 @@ export class CatalogService {
     return Promise.all(points.map((point) => this.enrich(point)));
   }
 
+  async listByRange(
+    fechaDesde: string,
+    fechaHasta: string,
+    estadoDisponibilidad?: RoutePoint['estadoDisponibilidad']
+  ): Promise<RoutePoint[]> {
+    let query = supabase
+      .from('route_points')
+      .select('*')
+      .gte('fecha', fechaDesde)
+      .lte('fecha', fechaHasta)
+      .order('fecha')
+      .order('sector');
+    if (estadoDisponibilidad) {
+      query = query.eq('estado_disponibilidad', estadoDisponibilidad);
+    }
+    const { data, error } = await query;
+    if (error) throw error;
+    return ((data ?? []) as RoutePointRow[]).map(toRoutePoint);
+  }
+
+  async listByRangeEnriched(
+    fechaDesde: string,
+    fechaHasta: string,
+    estadoDisponibilidad?: RoutePoint['estadoDisponibilidad']
+  ): Promise<RoutePointWithAssignee[]> {
+    const points = await this.listByRange(fechaDesde, fechaHasta, estadoDisponibilidad);
+    return Promise.all(points.map((point) => this.enrich(point)));
+  }
+
   private async enrich(point: RoutePoint): Promise<RoutePointWithAssignee> {
     if (!point.assignedInspectorId) {
       return { ...point, assignedInspectorName: null };

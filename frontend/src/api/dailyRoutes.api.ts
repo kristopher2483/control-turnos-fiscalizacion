@@ -34,6 +34,11 @@ export async function releaseAssignment(id: string): Promise<DailyRouteAssignmen
   return data
 }
 
+export async function reprogramAssignment(id: string, fecha: string): Promise<DailyRouteAssignment> {
+  const { data } = await apiClient.post<DailyRouteAssignment>(`/daily-routes/${id}/reprogramar`, { fecha })
+  return data
+}
+
 export async function uploadFiscalizacionFotos(
   id: string,
   numero: number,

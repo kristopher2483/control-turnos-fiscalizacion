@@ -3,21 +3,29 @@ import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { Input } from '../components/ui/Input'
+import { Select } from '../components/ui/Select'
 import { Spinner } from '../components/ui/Spinner'
 import { EmptyState } from '../components/ui/EmptyState'
 import { CreateRoutePointModal } from '../components/CreateRoutePointModal'
 import { EditRoutePointModal } from '../components/EditRoutePointModal'
-import { useCatalogQuery } from '../hooks/useCatalog'
+import { useCatalogRangeQuery } from '../hooks/useCatalog'
 import { getApiErrorMessage } from '../api/client'
 import { ESTADO_DISPONIBILIDAD_LABEL, ESTADO_DISPONIBILIDAD_TONE, formatDate, todayIsoDate } from '../utils/estado'
-import type { RoutePoint } from '../types'
+import type { EstadoDisponibilidad, RoutePoint } from '../types'
 
 export function AdminCatalogPage() {
-  const [fecha, setFecha] = useState(todayIsoDate())
+  const [fechaDesde, setFechaDesde] = useState(todayIsoDate())
+  const [fechaHasta, setFechaHasta] = useState(todayIsoDate())
+  const [estadoDisponibilidad, setEstadoDisponibilidad] = useState<EstadoDisponibilidad | ''>('')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingPoint, setEditingPoint] = useState<RoutePoint | null>(null)
 
-  const catalogQuery = useCatalogQuery(fecha)
+  const rangoInvalido = fechaDesde > fechaHasta
+  const catalogQuery = useCatalogRangeQuery(
+    rangoInvalido
+      ? { fechaDesde: '', fechaHasta: '' }
+      : { fechaDesde, fechaHasta, estadoDisponibilidad: estadoDisponibilidad || undefined },
+  )
 
   return (
     <div className="flex flex-col gap-6">
@@ -26,24 +34,48 @@ export function AdminCatalogPage() {
           <h1 className="text-xl font-semibold text-slate-900">Catálogo de puntos</h1>
           <p className="mt-0.5 text-sm text-slate-500">Crea y edita los puntos de inspección disponibles para cada fecha.</p>
         </div>
-        <div className="flex items-end gap-3">
-          <Input label="Fecha" type="date" value={fecha} onChange={(event) => setFecha(event.target.value)} />
-          <Button onClick={() => setIsCreateOpen(true)}>Nuevo punto</Button>
+        <Button onClick={() => setIsCreateOpen(true)}>Nuevo punto</Button>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+        <div className="w-full sm:w-48">
+          <Input label="Desde" type="date" value={fechaDesde} onChange={(event) => setFechaDesde(event.target.value)} />
+        </div>
+        <div className="w-full sm:w-48">
+          <Input label="Hasta" type="date" value={fechaHasta} onChange={(event) => setFechaHasta(event.target.value)} />
+        </div>
+        <div className="w-full sm:w-56">
+          <Select
+            label="Disponibilidad"
+            value={estadoDisponibilidad}
+            onChange={(event) => setEstadoDisponibilidad(event.target.value as EstadoDisponibilidad | '')}
+          >
+            <option value="">Todos</option>
+            <option value="disponible">Disponible</option>
+            <option value="tomado">Tomado</option>
+          </Select>
         </div>
       </div>
 
-      {catalogQuery.isPending ? (
+      {rangoInvalido ? (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
+          La fecha "Desde" no puede ser posterior a la fecha "Hasta".
+        </p>
+      ) : null}
+
+      {rangoInvalido ? null : catalogQuery.isPending ? (
         <Spinner />
       ) : catalogQuery.isError ? (
         <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{getApiErrorMessage(catalogQuery.error)}</p>
       ) : (catalogQuery.data ?? []).length === 0 ? (
-        <EmptyState title="No hay puntos para esta fecha" description="Crea un nuevo punto de inspección para comenzar." />
+        <EmptyState title="No hay puntos para estos filtros" description="Crea un nuevo punto de inspección para comenzar." />
       ) : (
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1080px] divide-y divide-slate-100 text-sm">
+            <table className="w-full min-w-[1200px] divide-y divide-slate-100 text-sm">
               <thead className="bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                 <tr>
+                  <th className="px-4 py-3">Fecha / Día</th>
                   <th className="px-4 py-3">Sector</th>
                   <th className="px-4 py-3">Dirección</th>
                   <th className="px-4 py-3">Empresa</th>
@@ -58,6 +90,10 @@ export function AdminCatalogPage() {
               <tbody className="divide-y divide-slate-100">
                 {(catalogQuery.data ?? []).map((point) => (
                   <tr key={point.id} className="hover:bg-slate-50/60">
+                    <td className="px-4 py-3 text-slate-600">
+                      <p className="font-medium text-slate-800">{formatDate(point.fecha)}</p>
+                      <p className="text-xs text-slate-500">{point.diaProgramado}</p>
+                    </td>
                     <td className="px-4 py-3 font-medium text-slate-800">{point.sector}</td>
                     <td className="px-4 py-3 text-slate-600">{point.direccion}</td>
                     <td className="px-4 py-3 text-slate-600">{point.empresaResponsable}</td>
@@ -87,7 +123,7 @@ export function AdminCatalogPage() {
         </Card>
       )}
 
-      <CreateRoutePointModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} fecha={fecha} />
+      <CreateRoutePointModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} fecha={todayIsoDate()} />
       <EditRoutePointModal isOpen={Boolean(editingPoint)} onClose={() => setEditingPoint(null)} point={editingPoint} />
     </div>
   )

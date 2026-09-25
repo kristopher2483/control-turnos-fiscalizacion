@@ -8,6 +8,7 @@ import { DailyRoutesController } from './daily-routes.controller';
 import {
   adminListQuerySchema,
   fechaQuerySchema,
+  reprogramSchema,
   takeRoutePointSchema,
   updateAssignmentSchema
 } from './daily-routes.schemas';
@@ -37,6 +38,12 @@ dailyRoutesRouter.post(
   requireRole('inspector'),
   uploadFotos,
   asyncHandler(controller.uploadFotos)
+);
+dailyRoutesRouter.post(
+  '/:id/reprogramar',
+  requireRole('admin'),
+  validateBody(reprogramSchema),
+  asyncHandler(controller.reprogramar)
 );
 dailyRoutesRouter.get(
   '/',
